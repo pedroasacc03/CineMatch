@@ -42,7 +42,7 @@ export default async function HomePage() {
           <p>
             {ratingsCount === 0 ? (
               <>
-                You haven&apos;t rated anything yet. Head to <Link href="/ratings" style={{ color: "white", textDecoration: "underline" }}>Ratings</Link> and rate a few titles to get started.
+                You haven&apos;t rated anything yet. Head to <Link href="/ratings">Ratings</Link> and rate a few titles to get started.
               </>
             ) : (
               <>
