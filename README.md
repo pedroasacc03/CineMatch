@@ -228,18 +228,16 @@ page) reads from `LANDING_VARIANTS` directly, so a new key just works.
 
 ### A transparency note on testing
 
-This project was scaffolded by an AI agent (Claude, via Cowork) in a sandboxed
-environment **without access to the npm registry** — `npm install` could not
-be run there, so `npm run dev` / `next build` were never actually executed
-against this code. Every file was instead verified by other means: `node
---check` on all plain JS files, an `esbuild` JSX/syntax pass on every
-component and page, and a manual cross-check that every import path, API
-route the frontend calls, and Prisma field/relation name referenced in code
-actually matches what's declared elsewhere (schema, file names, etc.). That
-catches syntax errors and most "typo'd a field name" bugs, but it is **not**
-the same as a real end-to-end run. Please treat your first `npm run dev` as
-the real first test, and expect that you (or Claude Code) may need to fix a
-small runtime issue or two — most likely candidates are listed below.
+This project was originally scaffolded by an AI agent (Claude, via Cowork) in
+a sandboxed environment without npm registry access, so early on its code was
+verified by static means only (`node --check`, an esbuild syntax pass, manual
+cross-checks) rather than a real run. That's no longer true - since then,
+every feature in this README has been built and verified against a real
+running `npm run dev` server (and, for anything touching real user data, real
+throwaway or read-only test accounts), including a full page-by-page pass
+right before the first production deploy. If you're picking this repo up
+fresh, `npm run dev` should just work; the note below is kept for any
+genuinely new addition that hasn't been through that process yet.
 
 **If something breaks**, the most likely spots are:
 
@@ -255,7 +253,43 @@ small runtime issue or two — most likely candidates are listed below.
   tool is relatively new), so double check the installed version's API still
   matches how `lib/anthropic.js` and `lib/chat.js` call `client.messages.create(...)`.
 
-## 6. What's already working (Phase 1 scope)
+## 6. Deploying to production
+
+This app's database is SQLite - a single file on disk (`prisma/dev.db`
+locally). That's zero-setup for development, but it means **serverless hosts
+with an ephemeral/read-only filesystem (Vercel, in particular) won't work
+without first migrating to a real hosted database** - see Path B below. The
+simplest path to a live deploy keeps SQLite exactly as-is, on a host with a
+real persistent disk and a long-running Node process.
+
+### Path A: keep SQLite as-is (Railway, Render, or Fly.io)
+
+1. Push this repo to GitHub: `git remote add origin <your-repo-url> && git push -u origin main`.
+2. On [railway.app](https://railway.app), create a new project → "Deploy from GitHub repo" → select this repo. It auto-detects Next.js (via Nixpacks) and uses `npm run build` / `npm run start`.
+3. Add a **Volume** and mount it somewhere like `/data` - this is what makes the SQLite file survive redeploys and restarts. Without it, every new deploy gets a fresh, empty filesystem and you'd lose all data.
+4. Set environment variables (see `.env.example` for the full list) in the dashboard:
+   - `ANTHROPIC_API_KEY` - your real key.
+   - `AUTH_SECRET` - a **fresh** random value, never the one in your local `.env` (generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+   - `CLAUDE_MODEL` / `CLAUDE_PROFILE_MODEL` - same as local, or your preferred models.
+   - `ADMIN_EMAILS` - whichever account(s) should see `/admin/metrics`.
+   - `DATABASE_URL` - pointed at the volume, e.g. `file:/data/dev.db` (must match wherever you mounted the volume in step 3).
+5. Run `npx prisma db push` once against the deployed environment to create the schema on that fresh database file (Railway's CLI supports running one-off commands against a deployed service - `railway run npx prisma db push` after `railway login` and `railway link`).
+6. Visit the domain Railway assigns (or attach a custom domain).
+
+Render and Fly.io follow the same shape: persistent disk + the same env vars
++ a one-time `prisma db push` against the deployed database.
+
+### Path B: migrate to Postgres, then deploy anywhere (including Vercel)
+
+A bigger lift, but the more scalable long-term path. `prisma/schema.prisma`'s
+`datasource` block is a one-line `provider` change from `"sqlite"` to
+`"postgresql"` (the schema itself uses no SQLite-only features); point
+`DATABASE_URL` at a hosted Postgres instance (Neon, Supabase, and Vercel
+Postgres all have free tiers), run `npx prisma db push` once to create the
+schema there, then deploy normally - no volume needed, since the database
+isn't local to the app server anymore.
+
+## 7. What's already working (Phase 1 scope)
 
 - Email/password auth (register, login, logout)
 - Home page: progress toward a solid taste profile, quick-action links, and
@@ -290,7 +324,7 @@ small runtime issue or two — most likely candidates are listed below.
   triaged, etc.), each with a short line of guidance on where to find the
   result (e.g. "You can see it on the Watched page.")
 
-## 7. What's not built yet (intentionally — see the planning doc's roadmap)
+## 8. What's not built yet (intentionally — see the planning doc's roadmap)
 
 These are Phase 2/3 items from the original plan, not oversights:
 
@@ -312,7 +346,7 @@ These are Phase 2/3 items from the original plan, not oversights:
   in the prompt context, but there's no dedicated logic weighting a title's
   country of origin against it yet.
 
-## 8. A note on data & privacy
+## 9. A note on data & privacy
 
 Everything lives in your local SQLite file (`prisma/dev.db`, git-ignored).
 The only external calls this app makes are to the Anthropic API. There's no
