@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# local SQLite database (each developer gets their own local copy)
+prisma/dev.db
+prisma/dev.db-journal
+
+# env files (never commit secrets)
+.env
+.env.local
+
+# misc
+.DS_Store
+*.log

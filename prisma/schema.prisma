@@ -1,0 +1,250 @@
+// Prisma schema for CineMatch.
+//
+// We use SQLite because it needs zero setup - it's just a file on disk
+// (prisma/dev.db). That makes "npm install && npm run dev" work immediately
+// for anyone who clones this project. If you later deploy this for real,
+// swapping the "provider" below to "postgresql" and pointing DATABASE_URL
+// at a real Postgres instance is the main change needed (see README).
+//
+// NOTE: SQLite doesn't support native `enum` types or array/JSON columns in
+// Prisma, so fields that are conceptually "an enum" or "a list" are stored
+// as plain strings (e.g. "watched", or a JSON-encoded string like
+// '["Netflix","HBO Max"]') and parsed/validated in application code instead
+// of by the database. Look for the JSON-string fields called out in comments below.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  // Timestamp of the user's opt-in consent checkbox at registration (see
+  // app/register/page.js and app/api/register/route.js) - required under
+  // Brazil's LGPD, which puts the burden of proving consent was actually
+  // given on us (the controller), not the user. Never backfilled or implied.
+  privacyConsentAt DateTime?
+
+  // Optional demographics (Section 3.5 of the plan doc / "My Preferences" page).
+  // Always optional - never required at signup or anywhere else.
+  location String? // e.g. "São Paulo, Brazil"
+
+  // JSON-encoded string[] of streaming service names the user has, e.g. ["Netflix","Disney+"]
+  streamingServices     String  @default("[]")
+  openToOtherStreaming  Boolean @default(true)
+
+  ratings         Rating[]
+  guidedAnswers   GuidedAnswer[]
+  profile         PreferenceProfile?
+  recommendations Recommendation[]
+  chatMessages    ChatMessage[]
+  rateLimitHits   RateLimitHit[]
+  events          Event[]
+}
+
+// A movie or TV show. This is our local cache of whatever the AI Engine found
+// via web search (see lib/titles.js). We look a title up once and reuse it
+// for every user after that, refreshing it again after CACHE_TTL_DAYS.
+model Title {
+  id               String   @id @default(cuid())
+  name             String
+  year             Int?
+  // "movie" or "tv" - see lib/titles.js TITLE_TYPES for the allowed values.
+  type             String
+  // JSON-encoded string[], e.g. ["Drama","Sci-Fi"]
+  genres           String   @default("[]")
+  overview         String?
+  posterUrl        String?
+  // Movies only - total runtime.
+  runtimeMinutes   Int?
+  // TV shows only - season/episode breakdown, since a TV show doesn't have a
+  // single "runtime" the way a movie does.
+  seasons                   Int?
+  avgEpisodesPerSeason      Int?
+  avgEpisodeRuntimeMinutes  Int?
+  // Full release date, e.g. "2006-12-15" - `year` above stays as the
+  // coarser field used for cache-key/duplicate-detection purposes.
+  releaseDate      String?
+  countryOfOrigin  String?
+  language         String?
+  // Content/maturity rating, e.g. "PG-13", "R", "TV-MA", "TV-14"
+  contentRating    String?
+  // Movies: primary director. TV: showrunner/creator. Cross-referenced across
+  // a user's ratings to spot director/creator affinity (lib/profile.js).
+  director         String?
+  creator          String?
+  // JSON-encoded string[] of top/lead cast members, e.g. ["Will Smith"]
+  cast             String   @default("[]")
+  // TV shows only - "ongoing" or "ended"
+  showStatus       String?
+  // JSON-encoded string[] of streaming services it's available on, e.g. ["Netflix"]
+  streamingAvailability String @default("[]")
+  // The country/region streamingAvailability was actually looked up for, e.g.
+  // "United States", "Brazil" - null if it was looked up with no specific
+  // region at all (a generic, likely US-biased web result). Since a Title row
+  // is a single global cache shared by every user (see lib/titles.js), this
+  // is what lets the UI warn a viewer when the cached list wasn't confirmed
+  // for THEIR region, instead of silently presenting it as accurate everywhere.
+  streamingRegion  String?
+  rtScore          Int?     // Rotten Tomatoes, 0-100
+  imdbScore        Float?   // IMDb, 0-10
+  lastRefreshed    DateTime @default(now())
+
+  ratings         Rating[]
+  recommendations Recommendation[]
+
+  // Prevents saving the same title twice - we treat name+year as "the same title".
+  @@unique([name, year])
+}
+
+// A user's opinion on a title - the core signal the whole app is built on.
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String
+  titleId   String
+  // One of: "watched" | "want_to_watch" | "not_interested" - see lib/questions.js RATING_STATUSES
+  status    String
+  stars     Int?     // 1-5, only meaningful when status is "watched"
+  why       String?  // free-text reason - the single highest-value field for the AI
+  // Where this rating came from: "form" | "chatbot" | "preferences"
+  source    String   @default("form")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, titleId])
+}
+
+// Answers to the 10 guided onboarding questions (see lib/questions.js).
+model GuidedAnswer {
+  id           String   @id @default(cuid())
+  userId       String
+  questionKey  String   // matches a `key` in lib/questions.js
+  questionText String   // stored alongside the key so history reads fine even if we edit the question wording later
+  answer       String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// The structured, user-editable taste profile the AI Engine builds and maintains.
+// This is what the "My Preferences" page reads and writes, and what powers
+// recommendations + the chatbot. One profile per user.
+//
+// Most fields are JSON-encoded strings (see lib/profile.js for the
+// serialize/deserialize helpers) because SQLite has no native array/object type.
+model PreferenceProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  generalLikes    String @default("[]") // JSON string[]
+  generalDislikes String @default("[]") // JSON string[]
+
+  // JSON-encoded array of { name: string, confidence: 1-5 }
+  genres String @default("[]")
+
+  storytelling String @default("[]") // JSON string[] of notes, e.g. "Plot twists that are earned, not just shocking"
+  languages    String @default("[]") // JSON string[]
+
+  // Demographics - optional, see User.location for the primary value.
+  // This mirrors it here so the profile document is self-contained.
+  demographicsConsider String? // free text, e.g. "also open to Japanese and Korean productions"
+
+  themes  String @default("[]") // JSON string[] recurring themes/motifs
+  nuances String @default("[]") // JSON string[] taste nuances / contradictions
+
+  // Directors/creators/actors the user seems drawn to (appearing across 2+
+  // positively-rated titles) - its own field so it's a clearly-labeled,
+  // individually-editable signal rather than buried inside storytelling/nuances.
+  favoriteCreators String @default("[]") // JSON string[]
+
+  // Notes on runtime/length comfort, quality-bar (RT/IMDb) leaning,
+  // era/recency preference, content-rating comfort, and ongoing-vs-ended
+  // show preference - same reasoning as favoriteCreators above.
+  viewingHabits String @default("[]") // JSON string[]
+
+  summary   String? // short AI-written "ideal content formula" paragraph
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A recommendation the AI has surfaced for a user, shown on the Recommendations page.
+model Recommendation {
+  id         String   @id @default(cuid())
+  userId     String
+  titleId    String
+  reasonText String   // the "why you'll like it" line
+  // "wishlist" | "ai_new" | "chatbot" - see lib/questions.js RECOMMENDATION_SOURCES
+  source     String
+  // "pending" | "watched" | "not_interested"
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, titleId])
+}
+
+// Chatbot conversation history, per user.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per request against a rate-limited, Anthropic-calling endpoint
+// (recommendations, title search, chat - see lib/rateLimit.js). DB-backed
+// rather than an in-memory counter specifically so the limit survives
+// `npm run dev` restarts during development - the whole point is stopping a
+// surprise Anthropic bill, and an in-memory counter resets on every restart.
+// Rows outside their action's window are deleted opportunistically by
+// checkRateLimit itself, so this table stays small without a separate job.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // e.g. "recommendations", "titleSearch", "chat"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, action, createdAt])
+}
+
+// Lightweight, first-party product-analytics event log - see lib/events.js.
+// Deliberately not a third-party tool (no PostHog/Segment/etc.): rows live
+// here, in our own database, queryable directly (Prisma Studio or a script),
+// never sent anywhere else. Tracks the activation funnel: "signup" ->
+// "first_rating" -> "activated_10_watched".
+//
+// userId is nullable: most events belong to a signed-in user, but a
+// "landing_view" (see app/lp/[variant]/page.js) happens before anyone has
+// an account - there's no user to attach it to yet.
+model Event {
+  id        String   @id @default(cuid())
+  userId    String?
+  name      String   // "signup" | "first_rating" | "activated_10_watched" | "landing_view" | ...
+  metadata  String?  // optional JSON-encoded string, e.g. {"watchedCount":10}
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([name, createdAt])
+  @@index([userId, name])
+}
