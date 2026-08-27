@@ -82,6 +82,11 @@ body {
   line-height: 1.55;
   color: var(--color-text);
   background: var(--color-bg);
+  /* Safety net: nothing in this file should ever cause the page itself to
+     scroll sideways on a phone, but if something we haven't caught still
+     does, this hides the symptom (a stray horizontal scrollbar/gutter)
+     instead of letting the whole page shift. */
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -135,8 +140,13 @@ code {
   max-width: 480px;
 }
 
-/* --- Nav bar --- */
+/* --- Nav bar ---
+   Below 900px, the 7 page links + Privacy + Log out genuinely don't fit in
+   one row (measured: needs ~860px+) - .navbar-menu-toggle and nav.open
+   below switch to a tap-to-open dropdown instead of letting it overflow or
+   wrap into a mess. */
 .navbar {
+  position: relative;
   background: var(--color-bg);
   color: var(--color-text);
   padding: 14px 24px;
@@ -180,6 +190,56 @@ code {
 .navbar form button:hover {
   border-color: var(--color-accent);
   color: var(--color-accent-700);
+}
+.navbar-menu-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--color-divider);
+  color: var(--color-neutral-700);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+.navbar-menu-toggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-700);
+}
+@media (max-width: 900px) {
+  .navbar-menu-toggle {
+    display: inline-block;
+  }
+  .navbar nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-divider);
+    box-shadow: var(--shadow-md);
+    padding: 4px 24px 12px;
+    z-index: 50;
+  }
+  .navbar nav.open {
+    display: flex;
+  }
+  .navbar nav a {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .navbar nav form {
+    padding: 12px 0 0;
+  }
+  .navbar nav form button {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+  }
 }
 
 /* --- Cards & layout --- */
@@ -348,6 +408,31 @@ code {
   margin-top: 8px;
 }
 
+/* --- Detail row (poster + form/details side by side) - Ratings' "Rate a
+   Title" panel and Wishlist's "Add to Wishlist" panel. Stacks on narrow
+   screens instead of squeezing the poster and the star rating/why-textarea/
+   save button into a sliver of space next to it. --- */
+.detail-row {
+  display: flex;
+  gap: 20px;
+}
+.detail-row .detail-poster {
+  flex: 0 0 120px;
+}
+.detail-row .detail-body {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .detail-row {
+    flex-direction: column;
+  }
+  .detail-row .detail-poster {
+    flex: 0 0 auto;
+    width: 140px;
+  }
+}
+
 /* --- Badges / chips - tinted from the ramps, never a solid fill --- */
 .badge {
   display: inline-block;
@@ -482,11 +567,17 @@ textarea {
 /* --- Chat page layout ---
    Fills the viewport (navbar + this) instead of normal page flow, so the
    message input never ends up below the fold - only the message list
-   scrolls internally. */
+   scrolls internally. Two height declarations on purpose: 100vh first for
+   browsers that don't support dvh, then 100dvh overrides it where
+   supported - mobile browsers resize their address bar in and out, and
+   100vh alone is calculated against the tallest possible state, which cuts
+   the input off below the fold on a real phone. 100dvh tracks the actual
+   visible viewport instead. */
 .chat-page-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 .chat-page-inner {
   flex: 1;
@@ -766,4 +857,39 @@ textarea {
   .landing-steps { grid-template-columns: 1fr; }
   .landing-feature-grid { grid-template-columns: 1fr; }
   .landing-hero h1 { font-size: 32px; }
+}
+
+/* --- Tables (app/admin/metrics) - was missing a definition entirely, so
+   these were rendering as unstyled browser-default tables. On narrow
+   screens the table scrolls horizontally as its own unit instead of
+   forcing the whole page to scroll sideways or squeezing columns unreadably
+   thin. --- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+}
+.table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+}
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+@media (max-width: 700px) {
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
 }

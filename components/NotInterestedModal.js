@@ -22,7 +22,7 @@ export default function NotInterestedModal({ titleName, reason, onReasonChange, 
           onChange={(e) => onReasonChange(e.target.value)}
           autoFocus
         />
-        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
           <button className="btn btn-primary" onClick={onConfirm} disabled={submitting}>
             {submitting ? "Saving..." : "Confirm"}
           </button>

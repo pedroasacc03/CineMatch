@@ -173,7 +173,7 @@ export default function RecommendationsPageClient({ initialRecommendations, init
         submitting={submittingNotInterested}
       />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 10, marginBottom: 20 }}>
         <button className="btn btn-outline" onClick={handleSurpriseClick} disabled={generating || surprising}>
           {surprising ? "Thinking..." : "Surprise Me"}
         </button>
@@ -205,7 +205,7 @@ export default function RecommendationsPageClient({ initialRecommendations, init
               onChange={(e) => setRegionInput(e.target.value)}
               autoFocus
             />
-            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
               <button
                 className="btn btn-primary"
                 onClick={() => regionInput.trim() && saveRegionAndGenerate(regionInput.trim())}

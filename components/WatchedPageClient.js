@@ -139,7 +139,7 @@ export default function WatchedPageClient({ initialWatched }) {
               This removes it from your Watched list entirely, including its rating and notes. The AI will no
               longer use it to shape your recommendations. This can&apos;t be undone.
             </p>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               <button className="btn btn-danger-outline" onClick={confirmDelete} disabled={deleting}>
                 {deleting ? "Deleting..." : "Delete"}
               </button>

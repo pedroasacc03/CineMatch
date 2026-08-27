@@ -128,8 +128,8 @@ function GenreEditor({ genres, onChange, onAdd }) {
   return (
     <div>
       {genres.map((g, i) => (
-        <div key={g.name + i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <span style={{ width: 180 }}>{g.name}</span>
+        <div key={g.name + i} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <span style={{ flex: "1 1 140px" }}>{g.name}</span>
           <span className="dot-rating">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -241,7 +241,7 @@ export default function PreferencesPageClient({ initialProfile, initialUserMeta 
     <>
       {toast && <Toast key={toast.key} message={toast.message} guidance={toast.guidance} onDismiss={dismissToast} />}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
         <p className="muted" style={{ maxWidth: 600 }}>
           Inspired by Instagram&apos;s &quot;Your Algorithm&quot; page — full transparency into what drives your
           recommendations. Edit anything below; changes are saved automatically and reshape your recommendations

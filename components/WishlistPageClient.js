@@ -121,11 +121,11 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
       {selectedTitle && (
         <div className="card">
           <h3>Add to Wishlist</h3>
-          <div style={{ display: "flex", gap: 20 }}>
-            <div style={{ flex: "0 0 120px" }}>
+          <div className="detail-row">
+            <div className="detail-poster">
               <TitlePoster title={selectedTitle} />
             </div>
-            <div style={{ flex: 1 }}>
+            <div className="detail-body">
               <h3 style={{ margin: "0 0 4px" }}>
                 {selectedTitle.name} {selectedTitle.year ? `(${selectedTitle.year})` : ""}
               </h3>
