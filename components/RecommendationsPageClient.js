@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import TitlePoster from "@/components/TitlePoster";
 import TitleMeta from "@/components/TitleMeta";
 import StreamingInfo from "@/components/StreamingInfo";
@@ -14,7 +15,7 @@ const SOURCE_BADGES = {
   surprise: { label: "Surprise Pick", className: "badge-surprise" },
 };
 
-export default function RecommendationsPageClient({ initialRecommendations, initialLocation }) {
+export default function RecommendationsPageClient({ initialRecommendations, initialLocation, eligibility }) {
   const [recommendations, setRecommendations] = useState(initialRecommendations);
   const [generating, setGenerating] = useState(false);
   const [surprising, setSurprising] = useState(false);
@@ -173,11 +174,40 @@ export default function RecommendationsPageClient({ initialRecommendations, init
         submitting={submittingNotInterested}
       />
 
+      {!eligibility.eligible && (
+        <div className="card" style={{ background: "var(--color-accent-100)", borderColor: "var(--color-accent-300)" }}>
+          <h3 style={{ marginTop: 0 }}>Recommendations unlock at {eligibility.goal} watched ratings</h3>
+          <p className="muted" style={{ marginBottom: 12 }}>
+            You&apos;re at {eligibility.watchedCount}/{eligibility.goal}. This isn&apos;t an arbitrary limit -
+            recommendations (and Surprise Me) are only as good as the taste profile behind them, and with fewer
+            than {eligibility.goal} ratings there isn&apos;t enough signal for the AI to do more than guess
+            generically. Rate a few more titles and this unlocks automatically - no need to come back and check.
+          </p>
+          <div className="progress-bar" style={{ marginBottom: 14 }}>
+            <div
+              className="progress-bar-fill"
+              style={{ width: `${Math.min(100, Math.round((eligibility.watchedCount / eligibility.goal) * 100))}%` }}
+            />
+          </div>
+          <Link href="/ratings" className="btn btn-primary">
+            Go rate something
+          </Link>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 10, marginBottom: 20 }}>
-        <button className="btn btn-outline" onClick={handleSurpriseClick} disabled={generating || surprising}>
+        <button
+          className="btn btn-outline"
+          onClick={handleSurpriseClick}
+          disabled={generating || surprising || !eligibility.eligible}
+        >
           {surprising ? "Thinking..." : "Surprise Me"}
         </button>
-        <button className="btn btn-primary" onClick={handleGenerateClick} disabled={generating || surprising}>
+        <button
+          className="btn btn-primary"
+          onClick={handleGenerateClick}
+          disabled={generating || surprising || !eligibility.eligible}
+        >
           {generating ? "Thinking..." : "Generate more picks"}
         </button>
       </div>

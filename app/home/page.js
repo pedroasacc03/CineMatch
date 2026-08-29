@@ -8,12 +8,9 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { listWishlist } from "@/lib/recommendations";
 import { trackPageView } from "@/lib/events";
+import { RATINGS_GOAL } from "@/lib/questions";
 import NavBar from "@/components/NavBar";
 import TitlePoster from "@/components/TitlePoster";
-
-// How many watched-and-rated titles it takes to have a solid taste profile.
-// Mirrors the goal shown on the Ratings page.
-const RATINGS_GOAL = 10;
 
 export default async function HomePage() {
   const user = await requireUser();
@@ -21,8 +18,13 @@ export default async function HomePage() {
   // background promise survives past the response - see lib/events.js.
   await trackPageView(user.id, "home").catch((err) => console.error("Failed to track page view:", err.message));
 
+  // Watched only - matches the Ratings page's own progress bar and, more
+  // importantly, the actual recommendations gate (see
+  // lib/recommendations.js checkRecommendationEligibility). Counting
+  // wishlist adds or not-interested marks here would make this number claim
+  // more progress than the gate actually recognizes.
   const [ratingsCount, wishlist] = await Promise.all([
-    prisma.rating.count({ where: { userId: user.id } }),
+    prisma.rating.count({ where: { userId: user.id, status: "watched" } }),
     listWishlist(user.id),
   ]);
 
@@ -42,12 +44,19 @@ export default async function HomePage() {
           <p>
             {ratingsCount === 0 ? (
               <>
-                You haven&apos;t rated anything yet. Head to <Link href="/ratings">Ratings</Link> and rate a few titles to get started.
+                You haven&apos;t rated anything yet. Head to <Link href="/ratings">Ratings</Link> and rate a few
+                titles to get started - once you&apos;ve rated {RATINGS_GOAL}, recommendations unlock.
+              </>
+            ) : ratingsCount >= RATINGS_GOAL ? (
+              <>
+                You&apos;ve rated {ratingsCount} title{ratingsCount === 1 ? "" : "s"}. Your taste profile is{" "}
+                {completeness}% complete, and <Link href="/recommendations">Recommendations</Link> are unlocked.
               </>
             ) : (
               <>
                 You&apos;ve rated {ratingsCount} title{ratingsCount === 1 ? "" : "s"}. Your taste profile is{" "}
-                {completeness}% complete.
+                {completeness}% complete - rate {RATINGS_GOAL - ratingsCount} more to unlock{" "}
+                <Link href="/recommendations">Recommendations</Link>.
               </>
             )}
           </p>

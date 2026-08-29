@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserFromRequest } from "@/lib/session";
-import { listRecommendations, generateRecommendations } from "@/lib/recommendations";
+import { listRecommendations, generateRecommendations, checkRecommendationEligibility } from "@/lib/recommendations";
 import { analyzePreferences } from "@/lib/profile";
 import { checkRateLimit, formatRetryAfter } from "@/lib/rateLimit";
 import { trackWatchedMilestones, trackEvent } from "@/lib/events";
@@ -30,6 +30,19 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await getCurrentUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  // Gate first, before spending a rate-limit slot on a request that's going
+  // to be rejected anyway - see lib/recommendations.js for why this exists
+  // (recommendations need real signal to not just be generic guesses).
+  const eligibility = await checkRecommendationEligibility(user.id);
+  if (!eligibility.eligible) {
+    return NextResponse.json(
+      {
+        error: `You need at least ${eligibility.goal} watched ratings before recommendations unlock - you're at ${eligibility.watchedCount}/${eligibility.goal}. This isn't an arbitrary limit: recommendations are only as good as the taste profile behind them, and with fewer than ${eligibility.goal} ratings there isn't enough signal for the AI to do more than guess generically. Rate a few more titles on the Ratings page, then come back.`,
+      },
+      { status: 403 }
+    );
+  }
 
   const limit = await checkRateLimit(user.id, "recommendations");
   if (!limit.allowed) {

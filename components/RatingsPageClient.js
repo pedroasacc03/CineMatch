@@ -8,13 +8,9 @@ import Toast from "@/components/Toast";
 import { useToast } from "@/lib/useToast";
 import { useTitleSearch } from "@/lib/useTitleSearch";
 import SearchRefineHint from "@/components/SearchRefineHint";
+import { RATINGS_GOAL } from "@/lib/questions";
 
 const STORAGE_KEY = "cinematch_hide_ratings_reminder";
-
-// How many watched-and-rated titles it takes to have enough signal for the
-// AI to build a solid first taste profile. Just a guidance number shown in
-// the UI - rating fewer still works, it just means a thinner profile.
-const RATINGS_GOAL = 10;
 
 // This page is only for titles you've already watched, in real life, and
 // want to rate - want-to-watch and not-interested live on the Wishlist and

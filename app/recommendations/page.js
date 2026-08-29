@@ -5,7 +5,7 @@
 // moves to the Wishlist or Watched page and drops off this list.
 
 import { requireUser } from "@/lib/session";
-import { listRecommendations } from "@/lib/recommendations";
+import { listRecommendations, checkRecommendationEligibility } from "@/lib/recommendations";
 import { trackPageView } from "@/lib/events";
 import NavBar from "@/components/NavBar";
 import RecommendationsPageClient from "@/components/RecommendationsPageClient";
@@ -13,7 +13,10 @@ import RecommendationsPageClient from "@/components/RecommendationsPageClient";
 export default async function RecommendationsPage() {
   const user = await requireUser();
   await trackPageView(user.id, "recommendations").catch((err) => console.error("Failed to track page view:", err.message));
-  const recommendations = await listRecommendations(user.id);
+  const [recommendations, eligibility] = await Promise.all([
+    listRecommendations(user.id),
+    checkRecommendationEligibility(user.id),
+  ]);
 
   return (
     <>
@@ -24,7 +27,11 @@ export default async function RecommendationsPage() {
           New AI-suggested picks you&apos;ve never mentioned. For each one, add it to your{" "}
           <a href="/wishlist">Wishlist</a>, mark it watched, or say you&apos;re not interested.
         </p>
-        <RecommendationsPageClient initialRecommendations={recommendations} initialLocation={user.location} />
+        <RecommendationsPageClient
+          initialRecommendations={recommendations}
+          initialLocation={user.location}
+          eligibility={eligibility}
+        />
       </div>
     </>
   );

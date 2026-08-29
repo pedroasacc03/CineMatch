@@ -4,13 +4,27 @@
 // it's a cheap, single-title call, not a repeat of "Generate more picks".
 import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/session";
-import { generateSurprisePick } from "@/lib/recommendations";
+import { generateSurprisePick, checkRecommendationEligibility } from "@/lib/recommendations";
 import { checkRateLimit, formatRetryAfter } from "@/lib/rateLimit";
 import { trackEvent } from "@/lib/events";
 
 export async function POST(request) {
   const user = await getCurrentUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  // Same gate as "Generate more picks" - a Surprise Me pick is specifically
+  // supposed to be grounded in a real thread in your taste profile, so with
+  // no real profile yet it can't do the one thing that makes it different
+  // from a random pick.
+  const eligibility = await checkRecommendationEligibility(user.id);
+  if (!eligibility.eligible) {
+    return NextResponse.json(
+      {
+        error: `You need at least ${eligibility.goal} watched ratings before Surprise Me unlocks - you're at ${eligibility.watchedCount}/${eligibility.goal}. A surprise pick is supposed to connect to something real in your taste profile, not just be random - without enough ratings there's no real profile to connect to yet. Rate a few more titles on the Ratings page, then come back.`,
+      },
+      { status: 403 }
+    );
+  }
 
   const limit = await checkRateLimit(user.id, "surprise");
   if (!limit.allowed) {
