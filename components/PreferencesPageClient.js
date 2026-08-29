@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { COMMON_STREAMING_SERVICES } from "@/lib/questions";
+import { COMMON_STREAMING_SERVICES, RATINGS_GOAL, RECOMMENDED_RATINGS_GOAL } from "@/lib/questions";
 import Toast from "@/components/Toast";
 import { useToast } from "@/lib/useToast";
 
@@ -245,7 +245,8 @@ export default function PreferencesPageClient({ initialProfile, initialUserMeta 
         <p className="muted" style={{ maxWidth: 600 }}>
           Inspired by Instagram&apos;s &quot;Your Algorithm&quot; page — full transparency into what drives your
           recommendations. Edit anything below; changes are saved automatically and reshape your recommendations
-          right away.
+          right away. This whole page is built from your ratings, so the more you rate on the{" "}
+          <a href="/ratings">Ratings page</a>, the richer and more accurate everything here gets.
         </p>
         <button className="btn btn-outline" onClick={handleReanalyze} disabled={reanalyzing}>
           {reanalyzing ? "Analyzing..." : "Ask AI to re-analyze"}
@@ -254,8 +255,8 @@ export default function PreferencesPageClient({ initialProfile, initialUserMeta 
 
       {!hasAnyData && (
         <p className="muted" style={{ marginBottom: 20 }}>
-          Not enough data yet — go rate a few titles (aim for at least 10) on the{" "}
-          <a href="/ratings">Ratings page</a>, then come back here.
+          Not enough data yet — go rate at least {RATINGS_GOAL} titles (aim for {RECOMMENDED_RATINGS_GOAL} for a
+          noticeably richer profile) on the <a href="/ratings">Ratings page</a>, then come back here.
         </p>
       )}
 

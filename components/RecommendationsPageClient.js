@@ -140,7 +140,10 @@ export default function RecommendationsPageClient({ initialRecommendations, init
     });
     const name = rec?.title?.name || "Title";
     if (status === "watched") {
-      showToast(`"${name}" marked as watched!`, "You can rate it on the Watched page.");
+      showToast(
+        `"${name}" marked as watched!`,
+        "Add a star rating on the Watched page while it's fresh - the more you rate, the better your recommendations get."
+      );
     } else if (status === "wishlisted") {
       showToast(`"${name}" added to your wishlist!`, "You can find it on the Wishlist page.");
     } else {
@@ -216,10 +219,11 @@ export default function RecommendationsPageClient({ initialRecommendations, init
         Feeling adventurous? &quot;Surprise Me&quot; picks one deliberate stretch outside your usual taste, with an
         explanation for why it might still be for you.
       </p>
-      {eligibility.eligible && !eligibility.metSuggestedGoal && (
+      {eligibility.eligible && (
         <p className="muted" style={{ marginBottom: 20 }}>
-          You&apos;ve rated {eligibility.watchedCount} titles - recommendations already work, but tend to get
-          noticeably better by {eligibility.suggestedGoal}. Totally optional, just a heads up.
+          {eligibility.metSuggestedGoal
+            ? `You've rated ${eligibility.watchedCount} titles - CineMatch has plenty to work with, and every new rating still sharpens things further. There's no point where more ratings stop helping.`
+            : `You've rated ${eligibility.watchedCount} titles - recommendations already work, but tend to get noticeably better by ${eligibility.suggestedGoal}. Totally optional, just a heads up.`}
         </p>
       )}
 

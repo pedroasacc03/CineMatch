@@ -25,7 +25,8 @@ export default async function RecommendationsPage() {
         <h1>Recommendations</h1>
         <p className="muted" style={{ marginBottom: 24 }}>
           New AI-suggested picks you&apos;ve never mentioned. For each one, add it to your{" "}
-          <a href="/wishlist">Wishlist</a>, mark it watched, or say you&apos;re not interested.
+          <a href="/wishlist">Wishlist</a>, mark it watched, or say you&apos;re not interested - every one of
+          those reactions feeds back into your taste profile, so there&apos;s no such thing as rating too much.
         </p>
         <RecommendationsPageClient
           initialRecommendations={recommendations}

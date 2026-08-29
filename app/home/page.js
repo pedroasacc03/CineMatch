@@ -56,7 +56,8 @@ export default async function HomePage() {
             ) : ratingsCount >= RECOMMENDED_RATINGS_GOAL ? (
               <>
                 You&apos;ve rated {ratingsCount} title{ratingsCount === 1 ? "" : "s"}. Your taste profile is{" "}
-                {completeness}% complete, and <Link href="/recommendations">Recommendations</Link> are unlocked.
+                {completeness}% built up, and <Link href="/recommendations">Recommendations</Link> are unlocked -
+                there&apos;s no real ceiling though, every title you rate keeps sharpening things further.
               </>
             ) : ratingsCount >= RATINGS_GOAL ? (
               <>

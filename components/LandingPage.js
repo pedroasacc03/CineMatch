@@ -62,13 +62,16 @@ export default async function LandingPage({ variantSlug }) {
           <div className="landing-step">
             <div className="landing-step-number">1</div>
             <h3>Rate what you&apos;ve watched</h3>
-            <p className="muted">A star rating and a quick &quot;why&quot; - that&apos;s all the AI needs.</p>
+            <p className="muted">
+              A star rating and a quick &quot;why&quot; - the more you rate, the better CineMatch knows you.
+            </p>
           </div>
           <div className="landing-step">
             <div className="landing-step-number">2</div>
             <h3>AI builds your taste profile</h3>
             <p className="muted">
-              Genres, themes, favorite creators, even your contradictions - fully visible and editable.
+              Genres, themes, favorite creators, even your contradictions - fully visible and editable, and it
+              keeps getting sharper with every title you rate.
             </p>
           </div>
           <div className="landing-step">

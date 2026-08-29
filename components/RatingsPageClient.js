@@ -87,7 +87,7 @@ export default function RatingsPageClient({ guidedQuestions }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save rating.");
 
-      showToast(`"${selectedTitle.name}" rated and saved!`, "You can see it on the Watched page.");
+      showToast(`"${selectedTitle.name}" rated and saved!`, "You can see it on the Watched page - every rating sharpens your recommendations.");
       await loadRecentRatings();
     } catch (err) {
       setSaveMessage(err.message);
@@ -110,7 +110,7 @@ export default function RatingsPageClient({ guidedQuestions }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <strong style={{ fontSize: 14 }}>
             {watchedCount >= RECOMMENDED_RATINGS_GOAL
-              ? `${watchedCount} titles rated — nice, your profile has plenty to work with!`
+              ? `${watchedCount} titles rated — your profile has plenty to work with, and every one you add still helps.`
               : watchedCount >= RATINGS_GOAL
               ? `${watchedCount} titles rated — Recommendations are unlocked! Keep going for even better picks.`
               : `Rate at least ${RATINGS_GOAL} titles to unlock Recommendations`}

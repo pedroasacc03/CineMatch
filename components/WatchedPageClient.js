@@ -60,10 +60,15 @@ function WatchedRow({ item, onSaved, onRequestDelete }) {
         <p className="muted" style={{ margin: "0 0 8px" }}>
           {item.title.genres?.join(" / ") || "Genres unknown"}
         </p>
+        {!item.stars && (
+          <p className="muted" style={{ color: "var(--color-danger-700)", marginBottom: 6 }}>
+            <strong>Not yet rated</strong> - add stars below so this counts toward your taste profile.
+          </p>
+        )}
         <div style={{ marginBottom: 10 }}>
           <StarRating value={stars} onChange={setStars} />
         </div>
-        <label htmlFor={`why-${item.id}`}>Why? (optional)</label>
+        <label htmlFor={`why-${item.id}`}>Why? (optional, but the single most useful thing the AI reads)</label>
         <textarea
           id={`why-${item.id}`}
           rows={2}
@@ -127,9 +132,29 @@ export default function WatchedPageClient({ initialWatched }) {
     );
   }
 
+  // Titles marked "watched" from the Wishlist/Recommendations pages don't
+  // collect a star rating in the moment (that flow is one click, on
+  // purpose) - so they land here unrated. Surfacing the count is the nudge
+  // to circle back, since an unrated "watched" entry gives the AI almost
+  // nothing to work with compared to one with stars and a "why".
+  const unratedCount = watched.filter((w) => !w.stars).length;
+
   return (
     <>
       {toast && <Toast key={toast.key} message={toast.message} guidance={toast.guidance} onDismiss={dismissToast} />}
+
+      {unratedCount > 0 && (
+        <div className="card" style={{ background: "var(--color-accent-100)", borderColor: "var(--color-accent-300)" }}>
+          <strong>
+            {unratedCount} title{unratedCount === 1 ? "" : "s"} still need{unratedCount === 1 ? "s" : ""} a star
+            rating
+          </strong>
+          <p className="muted" style={{ margin: "4px 0 0" }}>
+            These are marked watched but have no rating yet, so they&apos;re barely helping your recommendations.
+            Scroll down and add stars (and a quick &quot;why&quot;, if you remember) to get full value from them.
+          </p>
+        </div>
+      )}
 
       {deleteTarget && (
         <div className="modal-backdrop" onClick={() => !deleting && setDeleteTarget(null)}>
@@ -155,7 +180,9 @@ export default function WatchedPageClient({ initialWatched }) {
         <WatchedRow
           key={item.id}
           item={item}
-          onSaved={(titleName) => showToast(`"${titleName}" updated!`, "Your rating and notes are saved.")}
+          onSaved={(titleName) =>
+            showToast(`"${titleName}" updated!`, "Saved - this sharpens your recommendations right away.")
+          }
           onRequestDelete={setDeleteTarget}
         />
       ))}

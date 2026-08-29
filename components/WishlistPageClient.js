@@ -68,7 +68,10 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
       body: JSON.stringify({ titleId: item.title.id, status, why: reason || null }),
     });
     if (status === "watched") {
-      showToast(`"${item.title.name}" marked as watched!`, "You can rate it on the Watched page.");
+      showToast(
+        `"${item.title.name}" marked as watched!`,
+        "Add a star rating on the Watched page while it's fresh - the more you rate, the better your recommendations get."
+      );
     } else {
       showToast(`Got it - "${item.title.name}" marked not interested.`, "We won't recommend it again.");
     }

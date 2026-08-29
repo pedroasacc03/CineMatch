@@ -21,7 +21,10 @@ export default async function RatingsPage() {
         <h1>Ratings</h1>
         <p className="muted" style={{ marginBottom: 24 }}>
           For titles you&apos;ve already watched. Search for one and rate it — this is what teaches the AI your
-          taste. Want to watch something later instead? Head to your <a href="/wishlist">Wishlist</a>.
+          taste, and there&apos;s no ceiling: the more you rate, the better CineMatch knows your preferences and
+          the sharper your recommendations get. The best time to rate something is right after you watch it,
+          while it&apos;s still fresh. Want to watch something later instead? Head to your{" "}
+          <a href="/wishlist">Wishlist</a>.
         </p>
         <RatingsPageClient guidedQuestions={GUIDED_QUESTIONS} />
       </div>
