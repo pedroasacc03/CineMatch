@@ -8,7 +8,7 @@ import Toast from "@/components/Toast";
 import { useToast } from "@/lib/useToast";
 import { useTitleSearch } from "@/lib/useTitleSearch";
 import SearchRefineHint from "@/components/SearchRefineHint";
-import { RATINGS_GOAL } from "@/lib/questions";
+import { RATINGS_GOAL, RECOMMENDED_RATINGS_GOAL } from "@/lib/questions";
 
 const STORAGE_KEY = "cinematch_hide_ratings_reminder";
 
@@ -96,7 +96,11 @@ export default function RatingsPageClient({ guidedQuestions }) {
     }
   }
 
-  const progressPct = Math.min(100, Math.round((watchedCount / RATINGS_GOAL) * 100));
+  // Tracks toward RECOMMENDED_RATINGS_GOAL (10), same reasoning as the Home
+  // page: this reads as "how rich is my profile", which keeps improving
+  // past the lower RATINGS_GOAL (5) unlock threshold - that unlock gets its
+  // own callout below instead of being what "done" means here.
+  const progressPct = Math.min(100, Math.round((watchedCount / RECOMMENDED_RATINGS_GOAL) * 100));
 
   return (
     <>
@@ -105,12 +109,14 @@ export default function RatingsPageClient({ guidedQuestions }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <strong style={{ fontSize: 14 }}>
-            {watchedCount >= RATINGS_GOAL
+            {watchedCount >= RECOMMENDED_RATINGS_GOAL
               ? `${watchedCount} titles rated — nice, your profile has plenty to work with!`
-              : `Rate at least ${RATINGS_GOAL} titles to kick off your taste profile`}
+              : watchedCount >= RATINGS_GOAL
+              ? `${watchedCount} titles rated — Recommendations are unlocked! Keep going for even better picks.`
+              : `Rate at least ${RATINGS_GOAL} titles to unlock Recommendations`}
           </strong>
           <span className="muted">
-            {Math.min(watchedCount, RATINGS_GOAL)}/{RATINGS_GOAL}
+            {Math.min(watchedCount, RECOMMENDED_RATINGS_GOAL)}/{RECOMMENDED_RATINGS_GOAL}
           </span>
         </div>
         <div className="progress-bar">

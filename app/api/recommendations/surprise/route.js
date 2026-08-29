@@ -20,7 +20,7 @@ export async function POST(request) {
   if (!eligibility.eligible) {
     return NextResponse.json(
       {
-        error: `You need at least ${eligibility.goal} watched ratings before Surprise Me unlocks - you're at ${eligibility.watchedCount}/${eligibility.goal}. A surprise pick is supposed to connect to something real in your taste profile, not just be random - without enough ratings there's no real profile to connect to yet. Rate a few more titles on the Ratings page, then come back.`,
+        error: `You need at least ${eligibility.goal} watched ratings before Surprise Me unlocks - you're at ${eligibility.watchedCount}/${eligibility.goal}. A surprise pick is supposed to connect to something real in your taste profile, not just be random - without enough ratings there's no real profile to connect to yet. Rate a few more titles on the Ratings page, then come back (for even better picks, ${eligibility.suggestedGoal} total is the sweet spot, but it's not required).`,
       },
       { status: 403 }
     );

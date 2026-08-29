@@ -38,7 +38,7 @@ export async function POST(request) {
   if (!eligibility.eligible) {
     return NextResponse.json(
       {
-        error: `You need at least ${eligibility.goal} watched ratings before recommendations unlock - you're at ${eligibility.watchedCount}/${eligibility.goal}. This isn't an arbitrary limit: recommendations are only as good as the taste profile behind them, and with fewer than ${eligibility.goal} ratings there isn't enough signal for the AI to do more than guess generically. Rate a few more titles on the Ratings page, then come back.`,
+        error: `You need at least ${eligibility.goal} watched ratings before recommendations unlock - you're at ${eligibility.watchedCount}/${eligibility.goal}. This isn't an arbitrary limit: recommendations are only as good as the taste profile behind them, and with fewer than ${eligibility.goal} ratings there isn't enough signal for the AI to do more than guess generically. Rate a few more titles on the Ratings page, then come back (for even better picks, ${eligibility.suggestedGoal} total is the sweet spot, but it's not required).`,
       },
       { status: 403 }
     );

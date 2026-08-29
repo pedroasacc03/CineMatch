@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { listWishlist } from "@/lib/recommendations";
 import { trackPageView } from "@/lib/events";
-import { RATINGS_GOAL } from "@/lib/questions";
+import { RATINGS_GOAL, RECOMMENDED_RATINGS_GOAL } from "@/lib/questions";
 import NavBar from "@/components/NavBar";
 import TitlePoster from "@/components/TitlePoster";
 
@@ -28,7 +28,12 @@ export default async function HomePage() {
     listWishlist(user.id),
   ]);
 
-  const completeness = Math.min(100, Math.round((ratingsCount / RATINGS_GOAL) * 100));
+  // Tracks toward RECOMMENDED_RATINGS_GOAL (10), not the lower unlock
+  // threshold (RATINGS_GOAL, 5) - this percentage is meant to read as "how
+  // rich is my profile", which keeps meaningfully improving past the point
+  // Recommendations actually unlock. That unlock moment gets its own
+  // explicit callout below rather than being what "100%" means.
+  const completeness = Math.min(100, Math.round((ratingsCount / RECOMMENDED_RATINGS_GOAL) * 100));
   // "Top picks" previously showed undecided AI recommendations - now it
   // shows what the user has actually decided they want to watch (their
   // Wishlist), since that's a truer "coming up for you" than an unreviewed
@@ -45,12 +50,19 @@ export default async function HomePage() {
             {ratingsCount === 0 ? (
               <>
                 You haven&apos;t rated anything yet. Head to <Link href="/ratings">Ratings</Link> and rate a few
-                titles to get started - once you&apos;ve rated {RATINGS_GOAL}, recommendations unlock.
+                titles to get started - <Link href="/recommendations">Recommendations</Link> unlock at{" "}
+                {RATINGS_GOAL} (rate {RECOMMENDED_RATINGS_GOAL} total for even better picks).
+              </>
+            ) : ratingsCount >= RECOMMENDED_RATINGS_GOAL ? (
+              <>
+                You&apos;ve rated {ratingsCount} title{ratingsCount === 1 ? "" : "s"}. Your taste profile is{" "}
+                {completeness}% complete, and <Link href="/recommendations">Recommendations</Link> are unlocked.
               </>
             ) : ratingsCount >= RATINGS_GOAL ? (
               <>
                 You&apos;ve rated {ratingsCount} title{ratingsCount === 1 ? "" : "s"}. Your taste profile is{" "}
-                {completeness}% complete, and <Link href="/recommendations">Recommendations</Link> are unlocked.
+                {completeness}% complete, and <Link href="/recommendations">Recommendations</Link> are already
+                unlocked - keep rating for even better picks (aim for {RECOMMENDED_RATINGS_GOAL} total).
               </>
             ) : (
               <>

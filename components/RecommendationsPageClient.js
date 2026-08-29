@@ -179,9 +179,10 @@ export default function RecommendationsPageClient({ initialRecommendations, init
           <h3 style={{ marginTop: 0 }}>Recommendations unlock at {eligibility.goal} watched ratings</h3>
           <p className="muted" style={{ marginBottom: 12 }}>
             You&apos;re at {eligibility.watchedCount}/{eligibility.goal}. This isn&apos;t an arbitrary limit -
-            recommendations (and Surprise Me) are only as good as the taste profile behind them, and with fewer
-            than {eligibility.goal} ratings there isn&apos;t enough signal for the AI to do more than guess
+            recommendations (and Surprise Me) need at least a little real signal to avoid just guessing
             generically. Rate a few more titles and this unlocks automatically - no need to come back and check.
+            Once you&apos;re in, {eligibility.suggestedGoal} total ratings tends to be the sweet spot for
+            noticeably better picks - just a suggestion though, never required.
           </p>
           <div className="progress-bar" style={{ marginBottom: 14 }}>
             <div
@@ -211,10 +212,16 @@ export default function RecommendationsPageClient({ initialRecommendations, init
           {generating ? "Thinking..." : "Generate more picks"}
         </button>
       </div>
-      <p className="muted" style={{ marginTop: -14, marginBottom: 20 }}>
+      <p className="muted" style={{ marginTop: -14, marginBottom: 8 }}>
         Feeling adventurous? &quot;Surprise Me&quot; picks one deliberate stretch outside your usual taste, with an
         explanation for why it might still be for you.
       </p>
+      {eligibility.eligible && !eligibility.metSuggestedGoal && (
+        <p className="muted" style={{ marginBottom: 20 }}>
+          You&apos;ve rated {eligibility.watchedCount} titles - recommendations already work, but tend to get
+          noticeably better by {eligibility.suggestedGoal}. Totally optional, just a heads up.
+        </p>
+      )}
 
       {error && <p className="error-text">{error}</p>}
 
