@@ -182,10 +182,16 @@ export default function RatingsPageClient({ guidedQuestions }) {
                 <StarRating value={stars} onChange={setStars} />
               </div>
 
-              <label htmlFor="why">Why? (optional, helps the AI a lot)</label>
+              <label htmlFor="why">Why? (optional, but the more detail the better)</label>
+              <p className="muted" style={{ marginTop: -8, marginBottom: 8 }}>
+                Specifics beat generalities — the pacing, the characters, the tone, how it ended. That&apos;s
+                what lets the AI understand exactly why you liked or didn&apos;t like something and find real
+                patterns, instead of just going by genre - so it can recommend titles you haven&apos;t seen that
+                actually hit the same notes.
+              </p>
               <textarea
                 id="why"
-                placeholder="Loved the tension and moral weight..."
+                placeholder="e.g. The slow-burn tension and morally grey characters got me - the ambiguous ending fit the tone perfectly."
                 value={why}
                 onChange={(e) => setWhy(e.target.value)}
               />

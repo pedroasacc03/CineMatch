@@ -68,13 +68,15 @@ function WatchedRow({ item, onSaved, onRequestDelete }) {
         <div style={{ marginBottom: 10 }}>
           <StarRating value={stars} onChange={setStars} />
         </div>
-        <label htmlFor={`why-${item.id}`}>Why? (optional, but the single most useful thing the AI reads)</label>
+        <label htmlFor={`why-${item.id}`}>
+          Why? (optional - the more specific, the better the AI understands your taste)
+        </label>
         <textarea
           id={`why-${item.id}`}
           rows={2}
           value={why}
           onChange={(e) => setWhy(e.target.value)}
-          placeholder="Loved the tension and moral weight..."
+          placeholder="e.g. The slow-burn tension and morally grey characters got me - the ambiguous ending fit the tone perfectly."
         />
         {dirty && (
           <button className="btn btn-success" onClick={handleSave} disabled={saving}>
