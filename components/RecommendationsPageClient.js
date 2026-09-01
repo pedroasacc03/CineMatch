@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import TitlePoster from "@/components/TitlePoster";
 import TitleMeta from "@/components/TitleMeta";
 import StreamingInfo from "@/components/StreamingInfo";
 import Toast from "@/components/Toast";
 import { useToast } from "@/lib/useToast";
 import NotInterestedModal from "@/components/NotInterestedModal";
+import RateModal from "@/components/RateModal";
 
 const SOURCE_BADGES = {
   ai_new: { label: "New — never mentioned", className: "badge-new" },
@@ -36,6 +36,13 @@ export default function RecommendationsPageClient({ initialRecommendations, init
   const [notInterestedTarget, setNotInterestedTarget] = useState(null); // { id, title }
   const [notInterestedReason, setNotInterestedReason] = useState("");
   const [submittingNotInterested, setSubmittingNotInterested] = useState(false);
+
+  // "Mark Watched" asks for a rating right away (see RateModal) instead of
+  // just hoping the user comes back to the Watched page later.
+  const [rateTarget, setRateTarget] = useState(null); // { id, title }
+  const [rateStars, setRateStars] = useState(0);
+  const [rateWhy, setRateWhy] = useState("");
+  const [submittingRate, setSubmittingRate] = useState(false);
 
   async function refresh() {
     const res = await fetch("/api/recommendations");
@@ -128,7 +135,7 @@ export default function RecommendationsPageClient({ initialRecommendations, init
   }
 
   // `status` is a Recommendation-card action: "watched" | "wishlisted" | "not_interested".
-  async function handleAction(recommendationId, status, reason) {
+  async function handleAction(recommendationId, status, { reason, stars, why } = {}) {
     const rec = recommendations.find((r) => r.id === recommendationId);
     // Optimistically remove it from the queue - once triaged, it belongs on
     // the Watched/Wishlist page instead, not here.
@@ -136,13 +143,13 @@ export default function RecommendationsPageClient({ initialRecommendations, init
     await fetch("/api/recommendations", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recommendationId, status, reason }),
+      body: JSON.stringify({ recommendationId, status, reason, stars, why }),
     });
     const name = rec?.title?.name || "Title";
     if (status === "watched") {
       showToast(
-        `"${name}" marked as watched!`,
-        "Add a star rating on the Watched page while it's fresh - the more you rate, the better your recommendations get."
+        stars ? `"${name}" rated and saved!` : `"${name}" marked as watched!`,
+        stars ? "That sharpens your recommendations right away." : "You can rate it anytime from the Watched page."
       );
     } else if (status === "wishlisted") {
       showToast(`"${name}" added to your wishlist!`, "You can find it on the Wishlist page.");
@@ -159,9 +166,30 @@ export default function RecommendationsPageClient({ initialRecommendations, init
   async function confirmNotInterested() {
     if (!notInterestedTarget) return;
     setSubmittingNotInterested(true);
-    await handleAction(notInterestedTarget.id, "not_interested", notInterestedReason.trim() || undefined);
+    await handleAction(notInterestedTarget.id, "not_interested", { reason: notInterestedReason.trim() || undefined });
     setSubmittingNotInterested(false);
     setNotInterestedTarget(null);
+  }
+
+  function openRate(rec) {
+    setRateStars(0);
+    setRateWhy("");
+    setRateTarget(rec);
+  }
+
+  async function confirmRate() {
+    if (!rateTarget) return;
+    setSubmittingRate(true);
+    await handleAction(rateTarget.id, "watched", { stars: rateStars || undefined, why: rateWhy.trim() || undefined });
+    setSubmittingRate(false);
+    setRateTarget(null);
+  }
+
+  async function skipRate() {
+    if (!rateTarget) return;
+    const target = rateTarget;
+    setRateTarget(null);
+    await handleAction(target.id, "watched");
   }
 
   return (
@@ -177,15 +205,24 @@ export default function RecommendationsPageClient({ initialRecommendations, init
         submitting={submittingNotInterested}
       />
 
+      <RateModal
+        titleName={rateTarget?.title?.name}
+        stars={rateStars}
+        onStarsChange={setRateStars}
+        why={rateWhy}
+        onWhyChange={setRateWhy}
+        onConfirm={confirmRate}
+        onSkip={skipRate}
+        submitting={submittingRate}
+      />
+
       {!eligibility.eligible && (
         <div className="card" style={{ background: "var(--color-accent-100)", borderColor: "var(--color-accent-300)" }}>
           <h3 style={{ marginTop: 0 }}>Recommendations unlock at {eligibility.goal} watched ratings</h3>
           <p className="muted" style={{ marginBottom: 12 }}>
-            You&apos;re at {eligibility.watchedCount}/{eligibility.goal}. This isn&apos;t an arbitrary limit -
-            recommendations (and Surprise Me) need at least a little real signal to avoid just guessing
-            generically. Rate a few more titles and this unlocks automatically - no need to come back and check.
-            Once you&apos;re in, {eligibility.suggestedGoal} total ratings tends to be the sweet spot for
-            noticeably better picks - just a suggestion though, never required.
+            You&apos;re at {eligibility.watchedCount}/{eligibility.goal}. Rate a few more titles and this unlocks
+            automatically ({eligibility.suggestedGoal} total is the sweet spot for even better picks, but it&apos;s
+            not required).
           </p>
           <div className="progress-bar" style={{ marginBottom: 14 }}>
             <div
@@ -216,14 +253,12 @@ export default function RecommendationsPageClient({ initialRecommendations, init
         </button>
       </div>
       <p className="muted" style={{ marginTop: -14, marginBottom: 8 }}>
-        Feeling adventurous? &quot;Surprise Me&quot; picks one deliberate stretch outside your usual taste, with an
-        explanation for why it might still be for you.
+        &quot;Surprise Me&quot; picks one deliberate stretch outside your usual taste.
       </p>
-      {eligibility.eligible && (
+      {eligibility.eligible && !eligibility.metSuggestedGoal && (
         <p className="muted" style={{ marginBottom: 20 }}>
-          {eligibility.metSuggestedGoal
-            ? `You've rated ${eligibility.watchedCount} titles - CineMatch has plenty to work with, and every new rating still sharpens things further. There's no point where more ratings stop helping.`
-            : `You've rated ${eligibility.watchedCount} titles - recommendations already work, but tend to get noticeably better by ${eligibility.suggestedGoal}. Totally optional, just a heads up.`}
+          You&apos;ve rated {eligibility.watchedCount} titles - picks tend to get noticeably better by{" "}
+          {eligibility.suggestedGoal}.
         </p>
       )}
 
@@ -276,9 +311,6 @@ export default function RecommendationsPageClient({ initialRecommendations, init
           const badge = SOURCE_BADGES[rec.source] || SOURCE_BADGES.ai_new;
           return (
             <div key={rec.id} className="rec-card">
-              <div className="poster">
-                <TitlePoster title={rec.title} />
-              </div>
               <div className="body">
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <h3 style={{ margin: 0 }}>
@@ -300,7 +332,7 @@ export default function RecommendationsPageClient({ initialRecommendations, init
                 <button className="btn btn-primary" onClick={() => handleAction(rec.id, "wishlisted")}>
                   Add to Wishlist
                 </button>
-                <button className="btn btn-success" onClick={() => handleAction(rec.id, "watched")}>
+                <button className="btn btn-success" onClick={() => openRate(rec)}>
                   Mark Watched
                 </button>
                 <button className="btn btn-outline" onClick={() => openNotInterested(rec)}>

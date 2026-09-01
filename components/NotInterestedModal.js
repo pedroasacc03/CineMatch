@@ -13,9 +13,8 @@ export default function NotInterestedModal({ titleName, reason, onReasonChange, 
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0 }}>Not interested in &quot;{titleName}&quot;?</h3>
         <p className="muted" style={{ marginBottom: 16 }}>
-          Optional: tell us why - and the more specific, the better. &quot;Not for me&quot; doesn&apos;t give the
-          AI much to work with, but &quot;too slow-paced&quot; or &quot;already seen something very similar&quot;
-          helps it spot a real pattern and avoid recommending more of the same.
+          Optional: a specific reason (e.g. &quot;too slow-paced&quot;) helps the AI avoid recommending more of the
+          same.
         </p>
         <textarea
           rows={2}

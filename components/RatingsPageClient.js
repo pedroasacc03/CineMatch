@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import StarRating from "@/components/StarRating";
-import TitlePoster from "@/components/TitlePoster";
 import TitleMeta from "@/components/TitleMeta";
 import Toast from "@/components/Toast";
 import { useToast } from "@/lib/useToast";
@@ -158,57 +157,42 @@ export default function RatingsPageClient({ guidedQuestions }) {
         </div>
         {searchError && <p className="error-text" style={{ marginTop: 10 }}>{searchError}</p>}
         <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
-          Haven&apos;t watched it yet? Add it to your <a href="/wishlist">Wishlist</a> instead. Searches the web the
-          first time a title is looked up, then reuses the cached result after that.
+          Haven&apos;t watched it yet? Add it to your <a href="/wishlist">Wishlist</a> instead.
         </p>
       </form>
 
       {selectedTitle && (
         <div className="card">
-          <h3>Rate a Title</h3>
-          <div className="detail-row">
-            <div className="detail-poster">
-              <TitlePoster title={selectedTitle} />
-            </div>
-            <div className="detail-body">
-              <h3 style={{ margin: "0 0 4px" }}>
-                {selectedTitle.name} {selectedTitle.year ? `(${selectedTitle.year})` : ""}
-              </h3>
-              <TitleMeta title={selectedTitle} />
-              <p className="muted">{selectedTitle.genres?.join(" / ") || "Genres unknown"}</p>
+          <h3 style={{ margin: "0 0 4px" }}>
+            {selectedTitle.name} {selectedTitle.year ? `(${selectedTitle.year})` : ""}
+          </h3>
+          <TitleMeta title={selectedTitle} />
+          <p className="muted">{selectedTitle.genres?.join(" / ") || "Genres unknown"}</p>
 
-              <label>Your rating</label>
-              <div style={{ marginBottom: 14 }}>
-                <StarRating value={stars} onChange={setStars} />
-              </div>
-
-              <label htmlFor="why">Why? (optional, but the more detail the better)</label>
-              <p className="muted" style={{ marginTop: -8, marginBottom: 8 }}>
-                Specifics beat generalities — the pacing, the characters, the tone, how it ended. That&apos;s
-                what lets the AI understand exactly why you liked or didn&apos;t like something and find real
-                patterns, instead of just going by genre - so it can recommend titles you haven&apos;t seen that
-                actually hit the same notes.
-              </p>
-              <textarea
-                id="why"
-                placeholder="e.g. The slow-burn tension and morally grey characters got me - the ambiguous ending fit the tone perfectly."
-                value={why}
-                onChange={(e) => setWhy(e.target.value)}
-              />
-
-              <button className="btn btn-success" onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Rating"}
-              </button>
-              {saveMessage && <p className="error-text" style={{ marginTop: 10 }}>{saveMessage}</p>}
-
-              <SearchRefineHint
-                candidates={candidates}
-                loadingCandidates={loadingCandidates}
-                onShowOtherMatches={showOtherMatches}
-                onSelectCandidate={selectCandidate}
-              />
-            </div>
+          <label>Your rating</label>
+          <div style={{ marginBottom: 14 }}>
+            <StarRating value={stars} onChange={setStars} />
           </div>
+
+          <label htmlFor="why">Why? (optional — more detail helps the AI more)</label>
+          <textarea
+            id="why"
+            placeholder="e.g. The slow-burn tension and morally grey characters got me - the ambiguous ending fit the tone perfectly."
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+          />
+
+          <button className="btn btn-success" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Rating"}
+          </button>
+          {saveMessage && <p className="error-text" style={{ marginTop: 10 }}>{saveMessage}</p>}
+
+          <SearchRefineHint
+            candidates={candidates}
+            loadingCandidates={loadingCandidates}
+            onShowOtherMatches={showOtherMatches}
+            onSelectCandidate={selectCandidate}
+          />
         </div>
       )}
 

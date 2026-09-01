@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import TitlePoster from "@/components/TitlePoster";
 import TitleMeta from "@/components/TitleMeta";
 import StreamingInfo from "@/components/StreamingInfo";
 import Toast from "@/components/Toast";
@@ -9,6 +8,7 @@ import { useToast } from "@/lib/useToast";
 import { useTitleSearch } from "@/lib/useTitleSearch";
 import SearchRefineHint from "@/components/SearchRefineHint";
 import NotInterestedModal from "@/components/NotInterestedModal";
+import RateModal from "@/components/RateModal";
 
 export default function WishlistPageClient({ initialWishlist, userRegion }) {
   const [wishlist, setWishlist] = useState(initialWishlist);
@@ -32,6 +32,13 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
   const [notInterestedTarget, setNotInterestedTarget] = useState(null); // wishlist item
   const [notInterestedReason, setNotInterestedReason] = useState("");
   const [submittingNotInterested, setSubmittingNotInterested] = useState(false);
+
+  // "Mark Watched" asks for a rating right away (see RateModal) instead of
+  // just hoping the user comes back to the Watched page later.
+  const [rateTarget, setRateTarget] = useState(null); // wishlist item
+  const [rateStars, setRateStars] = useState(0);
+  const [rateWhy, setRateWhy] = useState("");
+  const [submittingRate, setSubmittingRate] = useState(false);
 
   async function confirmAddToWishlist() {
     if (!selectedTitle) return;
@@ -60,17 +67,17 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
   }
 
   // `status` here is a Rating status: "watched" | "not_interested".
-  async function updateStatus(item, status, reason) {
+  async function updateStatus(item, status, { reason, stars, why } = {}) {
     setWishlist((prev) => prev.filter((w) => w.id !== item.id));
     await fetch("/api/ratings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titleId: item.title.id, status, why: reason || null }),
+      body: JSON.stringify({ titleId: item.title.id, status, why: (why ?? reason) || null, stars: stars ?? null }),
     });
     if (status === "watched") {
       showToast(
-        `"${item.title.name}" marked as watched!`,
-        "Add a star rating on the Watched page while it's fresh - the more you rate, the better your recommendations get."
+        stars ? `"${item.title.name}" rated and saved!` : `"${item.title.name}" marked as watched!`,
+        stars ? "That sharpens your recommendations right away." : "You can rate it anytime from the Watched page."
       );
     } else {
       showToast(`Got it - "${item.title.name}" marked not interested.`, "We won't recommend it again.");
@@ -85,9 +92,30 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
   async function confirmNotInterested() {
     if (!notInterestedTarget) return;
     setSubmittingNotInterested(true);
-    await updateStatus(notInterestedTarget, "not_interested", notInterestedReason.trim());
+    await updateStatus(notInterestedTarget, "not_interested", { reason: notInterestedReason.trim() });
     setSubmittingNotInterested(false);
     setNotInterestedTarget(null);
+  }
+
+  function openRate(item) {
+    setRateStars(0);
+    setRateWhy("");
+    setRateTarget(item);
+  }
+
+  async function confirmRate() {
+    if (!rateTarget) return;
+    setSubmittingRate(true);
+    await updateStatus(rateTarget, "watched", { stars: rateStars || undefined, why: rateWhy.trim() || undefined });
+    setSubmittingRate(false);
+    setRateTarget(null);
+  }
+
+  async function skipRate() {
+    if (!rateTarget) return;
+    const target = rateTarget;
+    setRateTarget(null);
+    await updateStatus(target, "watched");
   }
 
   return (
@@ -101,6 +129,17 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
         onConfirm={confirmNotInterested}
         onCancel={() => setNotInterestedTarget(null)}
         submitting={submittingNotInterested}
+      />
+
+      <RateModal
+        titleName={rateTarget?.title?.name}
+        stars={rateStars}
+        onStarsChange={setRateStars}
+        why={rateWhy}
+        onWhyChange={setRateWhy}
+        onConfirm={confirmRate}
+        onSkip={skipRate}
+        submitting={submittingRate}
       />
 
       <form onSubmit={search} className="card">
@@ -123,31 +162,23 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
 
       {selectedTitle && (
         <div className="card">
-          <h3>Add to Wishlist</h3>
-          <div className="detail-row">
-            <div className="detail-poster">
-              <TitlePoster title={selectedTitle} />
-            </div>
-            <div className="detail-body">
-              <h3 style={{ margin: "0 0 4px" }}>
-                {selectedTitle.name} {selectedTitle.year ? `(${selectedTitle.year})` : ""}
-              </h3>
-              <TitleMeta title={selectedTitle} />
-              <p className="muted">{selectedTitle.genres?.join(" / ") || "Genres unknown"}</p>
-              <StreamingInfo title={selectedTitle} userRegion={userRegion} />
+          <h3 style={{ margin: "0 0 4px" }}>
+            {selectedTitle.name} {selectedTitle.year ? `(${selectedTitle.year})` : ""}
+          </h3>
+          <TitleMeta title={selectedTitle} />
+          <p className="muted">{selectedTitle.genres?.join(" / ") || "Genres unknown"}</p>
+          <StreamingInfo title={selectedTitle} userRegion={userRegion} />
 
-              <button className="btn btn-success" onClick={confirmAddToWishlist} disabled={adding}>
-                {adding ? "Adding..." : "Add to Wishlist"}
-              </button>
+          <button className="btn btn-success" onClick={confirmAddToWishlist} disabled={adding}>
+            {adding ? "Adding..." : "Add to Wishlist"}
+          </button>
 
-              <SearchRefineHint
-                candidates={candidates}
-                loadingCandidates={loadingCandidates}
-                onShowOtherMatches={showOtherMatches}
-                onSelectCandidate={selectCandidate}
-              />
-            </div>
-          </div>
+          <SearchRefineHint
+            candidates={candidates}
+            loadingCandidates={loadingCandidates}
+            onShowOtherMatches={showOtherMatches}
+            onSelectCandidate={selectCandidate}
+          />
         </div>
       )}
 
@@ -159,9 +190,6 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
       ) : (
         wishlist.map((item) => (
           <div key={item.id} className="rec-card">
-            <div className="poster">
-              <TitlePoster title={item.title} />
-            </div>
             <div className="body">
               <h3 style={{ margin: "0 0 4px" }}>
                 {item.title.name} {item.title.year ? `(${item.title.year})` : ""}
@@ -171,7 +199,7 @@ export default function WishlistPageClient({ initialWishlist, userRegion }) {
               <StreamingInfo title={item.title} userRegion={userRegion} />
             </div>
             <div className="actions">
-              <button className="btn btn-success" onClick={() => updateStatus(item, "watched")}>
+              <button className="btn btn-success" onClick={() => openRate(item)}>
                 Mark Watched
               </button>
               <button className="btn btn-outline" onClick={() => openNotInterested(item)}>

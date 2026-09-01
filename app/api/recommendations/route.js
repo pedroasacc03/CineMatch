@@ -69,7 +69,7 @@ export async function PATCH(request) {
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const body = await request.json().catch(() => null);
-  const { recommendationId, status, reason } = body || {};
+  const { recommendationId, status, reason, stars, why } = body || {};
   if (!recommendationId || !Object.keys(RATING_STATUS_FOR_ACTION).includes(status)) {
     return NextResponse.json({ error: "recommendationId and a valid status are required." }, { status: 400 });
   }
@@ -90,14 +90,23 @@ export async function PATCH(request) {
 
   // Triaging a recommendation closes the loop back into the Rating table -
   // exactly like rating a title directly would - which is what the Watched
-  // and Wishlist pages read from. `reason` is the optional "why not?" note
-  // from the not-interested prompt - the single most useful signal for the
-  // AI Preference Analysis Engine, so we save it just like a rating's "why".
+  // and Wishlist pages read from. `reason` (not-interested) and `why` (a
+  // rating given via the Mark Watched prompt) both land in the same "why"
+  // column - the single most useful signal for the AI Preference Analysis
+  // Engine - whichever one this action actually supplied.
   const ratingStatus = RATING_STATUS_FOR_ACTION[status];
+  const noteText = why ?? reason;
   await prisma.rating.upsert({
     where: { userId_titleId: { userId: user.id, titleId: recommendation.titleId } },
-    update: { status: ratingStatus, why: reason || undefined },
-    create: { userId: user.id, titleId: recommendation.titleId, status: ratingStatus, why: reason || null, source: "form" },
+    update: { status: ratingStatus, why: noteText || undefined, stars: stars ?? undefined },
+    create: {
+      userId: user.id,
+      titleId: recommendation.titleId,
+      status: ratingStatus,
+      why: noteText || null,
+      stars: stars ?? null,
+      source: "form",
+    },
   });
 
   // Don't block the response on this - it's a real Claude API call and the
