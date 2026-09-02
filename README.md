@@ -52,7 +52,7 @@ again. Every page in this app exists to feed or read from that loop.
 | Page | Route | What it does |
 |---|---|---|
 | Home | `/home` | Entry point. A "welcome back" hero with progress toward a solid taste profile (rated titles vs. a goal of 10), quick-action links to every other page, and a preview of the user's **Wishlist** (titles they've actually decided they want to watch — a truer "coming up for you" than an undecided AI suggestion). |
-| Ratings | `/ratings` | For titles the user has **already watched, in real life**: search (backed by AI web search, with an opt-in "show other possible matches" step for ambiguous titles) + a 1-5 star rating + optional "why." A small, dismissible reminder banner surfaces a few of the 10 guided questions from `lib/questions.js` (e.g. "What are your favorite movies?") as search inspiration — it's just a hint, not a form; there's no separate onboarding Q&A flow anymore. |
+| Ratings | `/ratings` | For titles the user has **already watched, in real life**: search (backed by TMDB, with an opt-in "show other possible matches" step for ambiguous titles) + a 1-5 star rating + optional "why." A small, dismissible reminder banner surfaces a few of the 10 guided questions from `lib/questions.js` (e.g. "What are your favorite movies?") as search inspiration — it's just a hint, not a form; there's no separate onboarding Q&A flow anymore. |
 | Watched | `/watched` | Every title the user has rated as watched, editable in place (change the stars or the "why" and it re-saves). |
 | Wishlist | `/wishlist` | Titles the user wants to watch but hasn't yet — searchable/addable directly here, or added via "Add to Wishlist" from a Recommendations card. Each entry can be marked Watched or Not Interested. |
 | Recommendations | `/recommendations` | The queue of pending AI picks awaiting a decision: "Generate more picks" (a batch of 4 new suggestions - 2 movies + 2 TV shows) and "Surprise Me" (exactly one deliberate stretch pick). Mark Watched / Add to Wishlist / Not Interested triages a card and closes the loop back into Ratings/Wishlist. Asks for the user's region on first use, since streaming availability is country-specific. |
@@ -94,15 +94,18 @@ an AI coding assistant to extend later.
   specifically so the MVP needs zero external OAuth credentials to run. If
   you add OAuth, swapping this out for NextAuth.js (Auth.js) is the
   recommended path — see "What's not built yet" below.
-- **No TMDB/JustWatch/OMDb integration.** Per an explicit product decision
-  (see the planning doc), the AI Engine itself uses Claude's web search tool
-  to look up a title's metadata, streaming availability, and RT/IMDb scores,
-  caching the result in the `Title` table (`lib/titles.js`). This means the
-  whole app only needs **one** external API key (Anthropic), not four.
-  Trade-off: first-time lookups are slower and slightly less structured than
-  a dedicated movie database API, and results depend on what Claude's web
-  search turns up. Streaming availability is looked up per the user's
-  region (`User.location`) when known, since it varies by country.
+- **TMDB + OMDb for title metadata**, not an AI lookup. This used to be an AI
+  web-search call per uncached title (per the original planning doc's "AI web
+  search instead of public APIs" decision) - reversed once it turned out to
+  be both the app's biggest cost driver and its biggest source of latency (a
+  multi-round-trip agentic search per title, on every cache miss). TMDB
+  (free, `TMDB_API_KEY`) now covers name/genres/cast/overview/streaming
+  availability in one fast structured call; OMDb (free, optional,
+  `OMDB_API_KEY`) covers the one thing TMDB doesn't - RT/IMDb scores, keyed
+  by the IMDb id TMDB provides. See `lib/titles.js`. Streaming availability
+  is looked up per the user's region (`User.location`) when known, resolved
+  to an ISO country code via a small lookup table, since TMDB's watch/
+  providers endpoint is region-keyed.
 - **Two-tier title search, opt-in disambiguation.** A search always resolves
   to Claude's single best guess (`findOrLookupTitle`, cached in `Title`).
   If that's the wrong title, the user can click "Show other possible
@@ -141,12 +144,12 @@ cinematch/
     SearchRefineHint.js              - "show other possible matches" disambiguation UI
     NotInterestedModal.js            - shared "why not interested?" prompt (Recommendations + Wishlist)
     Toast.js                         - shared save/action confirmation toast
-    StarRating.js, TitleMeta.js, TitlePoster.js   - shared title-display building blocks
+    StarRating.js, TitleMeta.js      - shared title-display building blocks
   lib/
     prisma.js                        - shared Prisma Client instance
     auth.js, session.js              - password hashing, session tokens, "who's logged in"
-    anthropic.js                     - thin Claude API wrapper (model selection, web search tool, JSON parsing, prompt caching)
-    titles.js                        - look up / cache movie & TV metadata via AI web search, plus disambiguation candidates
+    anthropic.js                     - thin Claude API wrapper (model selection, JSON parsing, prompt caching)
+    titles.js                        - look up / cache movie & TV metadata via TMDB + OMDb, plus disambiguation candidates
     profile.js                       - the AI Preference Analysis Engine
     recommendations.js               - turns a profile into batch picks or a single "Surprise Me" pick
     chat.js                          - the chatbot's tool-use loop
@@ -241,17 +244,19 @@ genuinely new addition that hasn't been through that process yet.
 
 **If something breaks**, the most likely spots are:
 
-- The Claude web search tool's exact type string (`web_search_20250305` in
-  `lib/anthropic.js`) — Anthropic occasionally revs this; check
-  [the web search tool docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)
-  if title lookups error out.
+- `TMDB_API_KEY` missing or invalid — title lookups/search will fail
+  entirely (`lib/titles.js` throws a clear error naming the missing key).
+  Get a free one at https://www.themoviedb.org/settings/api.
+- `OMDB_API_KEY` missing or its 1,000-requests/day free-tier limit hit —
+  degrades gracefully (RT/IMDb scores just come back null), doesn't break
+  lookups.
 - The default model strings (`claude-haiku-4-5` and `claude-sonnet-5` in
   `.env.example` / `CLAUDE_MODEL` / `CLAUDE_PROFILE_MODEL`) — swap them for
   whatever current Claude models you have access to if either is rejected.
 - Anthropic SDK version drift — `package.json` pins `@anthropic-ai/sdk` to
-  `"latest"` on purpose (this is a fast-moving package and the web search
-  tool is relatively new), so double check the installed version's API still
-  matches how `lib/anthropic.js` and `lib/chat.js` call `client.messages.create(...)`.
+  `"latest"` on purpose (this is a fast-moving package), so double check the
+  installed version's API still matches how `lib/anthropic.js` and
+  `lib/chat.js` call `client.messages.create(...)`.
 
 ## 6. Deploying to production
 
@@ -269,6 +274,8 @@ real persistent disk and a long-running Node process.
 3. Add a **Volume** and mount it somewhere like `/data` - this is what makes the SQLite file survive redeploys and restarts. Without it, every new deploy gets a fresh, empty filesystem and you'd lose all data.
 4. Set environment variables (see `.env.example` for the full list) in the dashboard:
    - `ANTHROPIC_API_KEY` - your real key.
+   - `TMDB_API_KEY` - your real key (title lookups won't work without it).
+   - `OMDB_API_KEY` - your real key (optional - only RT/IMDb scores depend on it).
    - `AUTH_SECRET` - a **fresh** random value, never the one in your local `.env` (generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
    - `CLAUDE_MODEL` / `CLAUDE_PROFILE_MODEL` - same as local, or your preferred models.
    - `ADMIN_EMAILS` - whichever account(s) should see `/admin/metrics`.
@@ -294,8 +301,8 @@ isn't local to the app server anymore.
 - Email/password auth (register, login, logout)
 - Home page: progress toward a solid taste profile, quick-action links, and
   a Wishlist preview
-- Ratings page: search (AI web search, cached, with opt-in disambiguation),
-  rate a watched title, recently-rated summary, dismissible guided-questions
+- Ratings page: search (TMDB, cached, with opt-in disambiguation), rate a
+  watched title, recently-rated summary, dismissible guided-questions
   reminder banner (10 sample prompts from `lib/questions.js`, for
   inspiration only — not a Q&A form)
 - Watched page: every watched title, editable in place

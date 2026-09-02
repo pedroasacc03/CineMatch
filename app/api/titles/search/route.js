@@ -1,6 +1,6 @@
 // GET /api/titles/search?q=...[&year=...&type=...] - the search bar on the
-// Ratings/Wishlist pages. Looks up (or reuses a cached) title via the AI
-// Engine's web search. `year`/`type` are optional and only ever come from
+// Ratings/Wishlist pages. Looks up (or reuses a cached) title via TMDB/OMDb
+// (see lib/titles.js). `year`/`type` are optional and only ever come from
 // the user picking a specific candidate off the "other matches" list (see
 // /api/titles/candidates) - they pin the lookup to that exact title instead
 // of the single best-guess default.

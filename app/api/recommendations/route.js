@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserFromRequest } from "@/lib/session";
 import { listRecommendations, generateRecommendations, checkRecommendationEligibility } from "@/lib/recommendations";
-import { analyzePreferences } from "@/lib/profile";
+import { maybeAnalyzePreferences } from "@/lib/profile";
 import { checkRateLimit, formatRetryAfter } from "@/lib/rateLimit";
 import { trackWatchedMilestones, trackEvent } from "@/lib/events";
 
@@ -110,8 +110,9 @@ export async function PATCH(request) {
   });
 
   // Don't block the response on this - it's a real Claude API call and the
-  // UI is only waiting to know the status change was saved.
-  analyzePreferences(user.id).catch((err) => {
+  // UI is only waiting to know the status change was saved. Batched - see
+  // lib/profile.js maybeAnalyzePreferences.
+  maybeAnalyzePreferences(user.id).catch((err) => {
     console.error("Failed to re-analyze preferences after recommendation action:", err.message);
   });
 

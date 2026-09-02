@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserFromRequest } from "@/lib/session";
 import { deserializeTitle } from "@/lib/titles";
-import { analyzePreferences } from "@/lib/profile";
+import { analyzePreferences, maybeAnalyzePreferences } from "@/lib/profile";
 import { RATING_STATUSES } from "@/lib/questions";
 import { trackWatchedMilestones, trackEvent } from "@/lib/events";
 
@@ -53,10 +53,11 @@ export async function POST(request) {
   });
 
   // Every new rating is new signal for the AI Engine - refresh the profile
-  // so the Recommendations/My Preferences pages reflect it. Don't block the
-  // save on this - it's a real Claude API call and the user is waiting on
-  // this response to know their rating was saved.
-  analyzePreferences(user.id).catch((err) => {
+  // so the Recommendations/My Preferences pages reflect it (batched - see
+  // lib/profile.js maybeAnalyzePreferences). Don't block the save on this -
+  // it's a real Claude API call and the user is waiting on this response to
+  // know their rating was saved.
+  maybeAnalyzePreferences(user.id).catch((err) => {
     console.error("Failed to re-analyze preferences after rating:", err.message);
   });
 

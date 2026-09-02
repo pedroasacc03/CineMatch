@@ -1,9 +1,9 @@
 // GET /api/titles/candidates?q=... - opt-in disambiguation for the Ratings
 // and Wishlist pages: "show other possible matches" after a search result
 // wasn't the right title. Deliberately separate from /api/titles/search
-// (the default single-best-guess lookup) so this extra AI call only ever
-// happens when a user explicitly asks for it - see lib/titles.js
-// findTitleCandidates for why that matters cost-wise.
+// (the default single-best-guess lookup) so this extra TMDB search only
+// ever happens when a user explicitly asks for it - see lib/titles.js
+// findTitleCandidates.
 import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/session";
 import { findTitleCandidates } from "@/lib/titles";
