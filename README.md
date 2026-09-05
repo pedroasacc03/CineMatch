@@ -118,6 +118,22 @@ an AI coding assistant to extend later.
   cheap now (plain TMDB API calls, no LLM involved), but keeping the split
   still means the common case (search resolves correctly on the first try)
   stays a single request.
+  **"Not found" is handled differently depending on which one comes back
+  empty**, worth knowing since it's not obviously symmetric: if
+  `findOrLookupTitle` gets zero TMDB results at all, `/api/titles/search`
+  returns a 404 and the page just shows an error message - the "Show other
+  possible matches" button isn't offered, since it only renders inside the
+  "here's what we found" card, which never appears when nothing was found.
+  So today, a genuine zero-result search is a dead end (retype with more
+  detail) rather than a path into the candidate list - that only helps with
+  "wrong match," not "no match." A candidate `findTitleCandidates` itself
+  can't find just renders as "No other likely matches found." Elsewhere, a
+  not-found result is handled per-caller: `generateRecommendations` silently
+  drops that one candidate from the batch (so a "Generate more picks" click
+  can come back with fewer than 4, for this reason as well as too-thin a
+  profile - the toast doesn't currently distinguish the two), `generateSurprisePick`
+  fails the whole action (there's only one pick to give), and the chatbot's
+  tools return an error string that Claude relays conversationally.
 - **One Claude model for everything, on purpose.** `CLAUDE_PROFILE_MODEL`
   (defaults to `claude-sonnet-5`) powers preference-profile synthesis
   (`lib/profile.js`), recommendation/Surprise Me candidate generation
