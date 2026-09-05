@@ -138,6 +138,19 @@ export default async function AdminMetricsPage() {
     prisma.event.findMany({ where: { name: EVENT_NAMES.SIGNUP, metadata: { not: null } }, select: { metadata: true } }),
   ]);
 
+  // TEMPORARY diagnostic - added to check whether production's actual Title
+  // rows have genres/overview populated (both are now used as AI Preference
+  // Analysis Engine signal, see lib/profile.js), since that can't be
+  // verified from outside the deployed container (SQLite lives on its
+  // volume, not a networked DB - see the README's SQLite/deploy notes).
+  // Remove this card once that's confirmed.
+  const [totalTitles, titlesMissingOverview, titlesMissingGenres, oldestTitle] = await Promise.all([
+    prisma.title.count(),
+    prisma.title.count({ where: { overview: null } }),
+    prisma.title.count({ where: { genres: "[]" } }),
+    prisma.title.findFirst({ orderBy: { lastRefreshed: "asc" }, select: { name: true, lastRefreshed: true } }),
+  ]);
+
   const ratedAtLeastOnce = watchedCounts.length;
   const activated = watchedCounts.filter((w) => w._count._all >= 10).length;
   const activeToday = activeTodayGroups.length;
@@ -257,6 +270,32 @@ export default async function AdminMetricsPage() {
               <div className="progress-bar-fill" style={{ width: pct(activated, totalUsers) }} />
             </div>
           </div>
+        </div>
+
+        <div className="card">
+          <h2>Title data health (temporary)</h2>
+          <p className="muted">
+            One-off check on whether cached titles actually have genres/overview populated in THIS database -
+            remove this card once confirmed. See lib/profile.js for why that data matters (it now feeds the AI
+            Preference Analysis Engine).
+          </p>
+          <ul style={{ marginTop: 12 }}>
+            <li>Total cached titles: <strong>{totalTitles}</strong></li>
+            <li>
+              Missing overview: <strong>{titlesMissingOverview}</strong>{" "}
+              <span className="muted">({pct(titlesMissingOverview, totalTitles)})</span>
+            </li>
+            <li>
+              Missing genres: <strong>{titlesMissingGenres}</strong>{" "}
+              <span className="muted">({pct(titlesMissingGenres, totalTitles)})</span>
+            </li>
+            {oldestTitle && (
+              <li>
+                Oldest cached title: <strong>{oldestTitle.name}</strong>, last refreshed{" "}
+                {new Date(oldestTitle.lastRefreshed).toLocaleDateString("en-US")}
+              </li>
+            )}
+          </ul>
         </div>
 
         <div className="card">
