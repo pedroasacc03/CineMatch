@@ -30,9 +30,11 @@ comfort, ongoing-vs-ended show preference), etc. That profile powers two things:
    Tomatoes/IMDb scores, and a personalized "why you'll like it," plus a
    one-off "Surprise Me" pick that deliberately steps outside the user's
    usual taste while still being grounded in a real connecting thread.
-2. A **Chatbot** — talk to the AI to log an opinion ("I just watched Andor
-   and loved it"), or ask for a recommendation on the spot ("something sad
-   for tonight").
+2. A **Chatbot** — a conversational alternative to the rest of the app, not
+   just a narrower add-on: log an opinion ("I just watched Andor and loved
+   it"), add or check the Wishlist, ask for a recommendation on the spot
+   ("something sad for tonight"), or ask it to review/edit/re-analyze your
+   taste profile directly.
 
 The user can also open **My Preferences**, a page that shows the AI's entire
 profile of them in an editable form (chips, lists, a confidence dot per
@@ -51,13 +53,13 @@ again. Every page in this app exists to feed or read from that loop.
 
 | Page | Route | What it does |
 |---|---|---|
-| Home | `/home` | Entry point. A "welcome back" hero with progress toward a solid taste profile (rated titles vs. a goal of 10), quick-action links to every other page, and a preview of the user's **Wishlist** (titles they've actually decided they want to watch — a truer "coming up for you" than an undecided AI suggestion). |
+| Home | `/home` | Entry point. A "welcome back" hero with progress toward a solid taste profile (rated titles vs. `RECOMMENDED_RATINGS_GOAL`, 10), quick-action links to every other page, and a preview of the user's **Wishlist** (titles they've actually decided they want to watch — a truer "coming up for you" than an undecided AI suggestion). |
 | Ratings | `/ratings` | For titles the user has **already watched, in real life**: search (backed by TMDB, with an opt-in "show other possible matches" step for ambiguous titles) + a 1-5 star rating + optional "why." A small, dismissible reminder banner surfaces a few of the 10 guided questions from `lib/questions.js` (e.g. "What are your favorite movies?") as search inspiration — it's just a hint, not a form; there's no separate onboarding Q&A flow anymore. |
 | Watched | `/watched` | Every title the user has rated as watched, editable in place (change the stars or the "why" and it re-saves). |
 | Wishlist | `/wishlist` | Titles the user wants to watch but hasn't yet — searchable/addable directly here, or added via "Add to Wishlist" from a Recommendations card. Each entry can be marked Watched or Not Interested. |
-| Recommendations | `/recommendations` | The queue of pending AI picks awaiting a decision: "Generate more picks" (a batch of 4 new suggestions - 2 movies + 2 TV shows) and "Surprise Me" (exactly one deliberate stretch pick). Mark Watched / Add to Wishlist / Not Interested triages a card and closes the loop back into Ratings/Wishlist. Asks for the user's region on first use, since streaming availability is country-specific. |
+| Recommendations | `/recommendations` | Gated behind `RATINGS_GOAL` (5) watched ratings — not enough signal to be more than a generic guess before that — with `RECOMMENDED_RATINGS_GOAL` (10) surfaced as a non-blocking "you'll get better picks" nudge past the unlock. Once unlocked: the queue of pending AI picks awaiting a decision, "Generate more picks" (a batch of up to 4 new suggestions - 2 movies + 2 TV shows, capped in code even if Claude returns more) and "Surprise Me" (exactly one deliberate stretch pick). A candidate that's already been rated or recommended is rejected in code before it's ever shown, regardless of what the prompt told Claude to avoid. Mark Watched immediately prompts for a star rating (`RateModal`) instead of leaving it to be rated later. Mark Watched / Add to Wishlist / Not Interested triages a card and closes the loop back into Ratings/Wishlist. Asks for the user's region on first use, since streaming availability is country-specific. |
 | My Preferences | `/preferences` | The AI's profile of the user, fully readable and editable, including favorite genres, themes, storytelling notes, favorite creators/actors, and viewing-habit patterns. |
-| Chatbot | `/chat` | Conversational interface. Can log ratings and add recommendations via tool use (see `lib/chat.js`), not just talk about doing so. |
+| Chatbot | `/chat` | Conversational interface with real read/write access to the same data every other page uses, via 5 tools (see `lib/chat.js`): log a rating/wishlist-add/not-interested (`log_title_opinion`), recommend a title (`recommend_title`, same dedup guard as the Recommendations page), view the Wishlist/Watched/Recommendations lists (`view_list`), re-run the full profile analysis on demand (`reanalyze_preferences`), and make a targeted edit to one profile field (`edit_preferences`). It's a genuine alternate way to drive the whole app, not a narrower chat-only experience. |
 
 Ratings, Watched, and Wishlist used to be one combined page in an earlier
 version of this MVP; they're now split so "log something I watched,"
@@ -107,22 +109,33 @@ an AI coding assistant to extend later.
   to an ISO country code via a small lookup table, since TMDB's watch/
   providers endpoint is region-keyed.
 - **Two-tier title search, opt-in disambiguation.** A search always resolves
-  to Claude's single best guess (`findOrLookupTitle`, cached in `Title`).
-  If that's the wrong title, the user can click "Show other possible
-  matches" (`SearchRefineHint` component) to trigger a second, separate AI
-  call (`findTitleCandidates`) that returns up to 4 real candidates to
-  choose from instead. This is deliberately a second call the user has to
-  ask for, not something that runs by default, to keep the common case
-  (search resolves correctly on the first try) cheap.
-- **Two Claude models, split by task.** `CLAUDE_MODEL` (defaults to
-  `claude-haiku-4-5`) handles title lookup, recommendations, and chat — cheap,
-  fast, structured-extraction-style work. `CLAUDE_PROFILE_MODEL` (defaults to
-  `claude-sonnet-5`) is used only for preference-profile synthesis
-  (`lib/profile.js`), which has to cross-reference and resolve titles across
-  ratings and free-text answers — a harder instruction-following task that a
-  cheaper model doesn't reliably get right. The profile-synthesis system
-  prompt also uses Anthropic prompt caching (`cacheSystemPrompt` in
-  `lib/anthropic.js`) since it's fully static and runs after every rating.
+  to TMDB's single best-ranked match (`findOrLookupTitle`, cached in
+  `Title`). If that's the wrong title, the user can click "Show other
+  possible matches" (`SearchRefineHint` component) to trigger a second,
+  separate TMDB search (`findTitleCandidates`) that returns up to 4 real
+  candidates to choose from instead. This is deliberately a second call the
+  user has to ask for, not something that runs by default - both calls are
+  cheap now (plain TMDB API calls, no LLM involved), but keeping the split
+  still means the common case (search resolves correctly on the first try)
+  stays a single request.
+- **One Claude model for everything, on purpose.** `CLAUDE_PROFILE_MODEL`
+  (defaults to `claude-sonnet-5`) powers preference-profile synthesis
+  (`lib/profile.js`), recommendation/Surprise Me candidate generation
+  (`lib/recommendations.js`), and the chatbot (`lib/chat.js`). There used to
+  be a second, cheaper tier (Haiku) for chat and recommendations, with Sonnet
+  reserved for profile synthesis only — removed after a head-to-head test
+  (identical scenarios run against both models, every claimed action checked
+  against the actual database) caught Haiku occasionally claiming to have
+  made a data edit it never actually made, once even fabricating a
+  supporting detail to back up the false claim. That failure mode matters
+  more than the cost/latency difference for a feature whose entire point is
+  giving the user (and the chatbot, which now has real read/write access to
+  ratings/wishlist/recommendations/preferences) trustworthy access to real
+  data. Both the profile-synthesis and chatbot system prompts use Anthropic
+  prompt caching (`cacheSystemPrompt` in `lib/anthropic.js` for the former,
+  inline `cache_control` in `lib/chat.js` for the latter) — the
+  recommendation prompts are fully static too but too short to clear
+  Sonnet's 1024-token cache minimum, so caching them would be a no-op.
 
 ## 4. Project structure
 
@@ -143,8 +156,10 @@ cinematch/
                                       - client-side logic for each page
     SearchRefineHint.js              - "show other possible matches" disambiguation UI
     NotInterestedModal.js            - shared "why not interested?" prompt (Recommendations + Wishlist)
+    RateModal.js                     - shared "rate it now" prompt on Mark Watched (Recommendations + Wishlist)
     Toast.js                         - shared save/action confirmation toast
-    StarRating.js, TitleMeta.js      - shared title-display building blocks
+    StarRating.js, TitleMeta.js      - shared title-display building blocks (no poster/image component -
+                                        see "What's already working" below for why)
   lib/
     prisma.js                        - shared Prisma Client instance
     auth.js, session.js              - password hashing, session tokens, "who's logged in"
@@ -166,8 +181,11 @@ there if you're trying to understand how a feature works end to end.
 
 ## 5. Running it locally
 
-**Prerequisites:** Node.js 18.18+ (Next.js 14's minimum) and an
-[Anthropic API key](https://console.anthropic.com/settings/keys).
+**Prerequisites:** Node.js 18.18+ (Next.js 14's minimum), an
+[Anthropic API key](https://console.anthropic.com/settings/keys), and a free
+[TMDB API key](https://www.themoviedb.org/settings/api) (required - all title
+lookups go through it). An [OMDb API key](https://www.omdbapi.com/apikey.aspx)
+is optional (only powers RT/IMDb scores).
 
 ```bash
 cd cinematch
@@ -176,6 +194,8 @@ npm install
 cp .env.example .env
 # then edit .env:
 #   - set ANTHROPIC_API_KEY to a real key
+#   - set TMDB_API_KEY to a real key (required - see .env.example)
+#   - optionally set OMDB_API_KEY (RT/IMDb scores only - app works without it)
 #   - set AUTH_SECRET to a random string, e.g. output of:
 #     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
@@ -250,9 +270,9 @@ genuinely new addition that hasn't been through that process yet.
 - `OMDB_API_KEY` missing or its 1,000-requests/day free-tier limit hit —
   degrades gracefully (RT/IMDb scores just come back null), doesn't break
   lookups.
-- The default model strings (`claude-haiku-4-5` and `claude-sonnet-5` in
-  `.env.example` / `CLAUDE_MODEL` / `CLAUDE_PROFILE_MODEL`) — swap them for
-  whatever current Claude models you have access to if either is rejected.
+- The default model string (`claude-sonnet-5` in `.env.example` /
+  `CLAUDE_PROFILE_MODEL`) — swap it for whatever current Claude model you
+  have access to if it's rejected.
 - Anthropic SDK version drift — `package.json` pins `@anthropic-ai/sdk` to
   `"latest"` on purpose (this is a fast-moving package), so double check the
   installed version's API still matches how `lib/anthropic.js` and
@@ -277,7 +297,7 @@ real persistent disk and a long-running Node process.
    - `TMDB_API_KEY` - your real key (title lookups won't work without it).
    - `OMDB_API_KEY` - your real key (optional - only RT/IMDb scores depend on it).
    - `AUTH_SECRET` - a **fresh** random value, never the one in your local `.env` (generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
-   - `CLAUDE_MODEL` / `CLAUDE_PROFILE_MODEL` - same as local, or your preferred models.
+   - `CLAUDE_PROFILE_MODEL` - same as local, or your preferred model.
    - `ADMIN_EMAILS` - whichever account(s) should see `/admin/metrics`.
    - `DATABASE_URL` - pointed at the volume, e.g. `file:/data/dev.db` (must match wherever you mounted the volume in step 3).
 5. Run `npx prisma db push` once against the deployed environment to create the schema on that fresh database file (Railway's CLI supports running one-off commands against a deployed service - `railway run npx prisma db push` after `railway login` and `railway link`).
@@ -299,33 +319,73 @@ isn't local to the app server anymore.
 ## 7. What's already working (Phase 1 scope)
 
 - Email/password auth (register, login, logout)
-- Home page: progress toward a solid taste profile, quick-action links, and
-  a Wishlist preview
+- Home page: progress toward a solid taste profile (two-tier goal - see
+  below), quick-action links, and a Wishlist preview
 - Ratings page: search (TMDB, cached, with opt-in disambiguation), rate a
   watched title, recently-rated summary, dismissible guided-questions
   reminder banner (10 sample prompts from `lib/questions.js`, for
   inspiration only — not a Q&A form)
-- Watched page: every watched title, editable in place
+- Watched page: every watched title, editable in place; anything marked
+  watched without a star rating (e.g. a one-click "Mark Watched" from
+  Wishlist/Recommendations, before the `RateModal` prompt below existed for
+  those flows) is flagged with a visible "not yet rated" banner
 - Wishlist page: search-and-add, or add from a Recommendations card; mark
   Watched or Not Interested from here too
-- Recommendations page: batch "Generate more picks" + one-off "Surprise Me"
-  stretch pick, region prompt for accurate streaming availability, Mark
-  Watched / Add to Wishlist / Not Interested triage
+- **Two-tier ratings goal**, not a single hard cutoff: `RATINGS_GOAL` (5)
+  unlocks Recommendations/Surprise Me at all (below that, there's not enough
+  signal for the AI to do more than guess generically); `RECOMMENDED_RATINGS_GOAL`
+  (10) is a non-blocking "you'll get noticeably better picks" nudge shown
+  past the unlock, never a gate. Messaging about "the more you rate (and the
+  more detail in your 'why'), the better it gets" is reinforced consistently
+  across Home, Ratings, Watched, Wishlist, and Recommendations.
+- Recommendations page: batch "Generate more picks" (capped in code at the
+  requested movie/TV count even if Claude returns more) + one-off "Surprise
+  Me" stretch pick (retries once if its pick collides with something already
+  known), region prompt for accurate streaming availability, Mark Watched
+  (which now opens `RateModal` to capture a star rating in the moment,
+  skippable) / Add to Wishlist / Not Interested triage
+- **Already-known titles can't be re-recommended** - enforced in code (a
+  resolved candidate's real database id is checked against everything the
+  user has already rated or been recommended), not left to the prompt alone.
+  Applies to the batch generator, Surprise Me, and the chatbot's
+  `recommend_title` tool alike.
 - Shared "Not Interested" reason prompt (Recommendations + Wishlist) —
   captured as a strong negative signal, on par with a 1-star rating
-- AI Preference Analysis Engine: builds/updates a profile from ratings
-  (including favorite creators/actors and viewing-habit patterns pulled from
-  runtime, quality scores, content rating, and director/cast data), treats
-  the existing profile as a starting point rather than overwriting it
-  wholesale, runs after every rating, recommendation triage, manual
-  re-analyze request, or meaningful chat exchange
+- Titles are shown as name-only cards, deliberately with no poster/cover
+  image. An AI web-search lookup for poster URLs was tried and dropped -
+  verified against real data, only ~1 in 66 cached titles ever had a poster
+  that actually loaded, and the AI fabricated plausible-looking-but-fake
+  URLs even when told to only return a real, direct image link.
+- AI Preference Analysis Engine: builds/updates a profile from a user's
+  **entire** rating history (no cap - a title's genres and a short plot
+  synopsis are part of that signal now too, alongside stars/why/runtime/
+  quality scores/content rating/director/cast), treats the existing profile
+  as a starting point rather than overwriting it wholesale. Runs immediately
+  on a user's very first rating, then batched to roughly every 3rd
+  rating/triage after that (a real cost saver once title lookups stopped
+  being the expensive part - see Section 3); deleting a rating and the
+  manual "Ask AI to re-analyze" button always run it immediately instead,
+  since those are explicit, infrequent user actions that deserve an
+  up-to-date answer, not a batched one.
 - My Preferences page: full read + edit of the profile, "Ask AI to
   re-analyze" button
-- Chatbot: logs ratings and adds recommendations via tool use, grounded in
-  the user's current profile
-- Cost/quality-tuned model selection (cheap model for search/recs/chat, a
-  stronger model just for profile synthesis) with prompt caching on the
-  profile system prompt
+- Chatbot: genuine read/write access to the same data every other page
+  uses (see the pages table above for the 5 tools), not just logging
+  opinions - grounded in the user's current profile every turn, with an
+  explicit system-prompt instruction never to claim an action succeeded
+  without actually having called its tool that turn (a real failure mode
+  found in testing - see Section 3)
+- Single-model architecture (`CLAUDE_PROFILE_MODEL`, defaults to
+  `claude-sonnet-5`) used for every remaining Claude call in the app
+  (profile synthesis, recommendations, chat) - see Section 3 for why a
+  cheaper second tier was tried and removed. Title metadata isn't an
+  LLM call at all anymore (TMDB/OMDb). Prompt caching is used on both the
+  profile-synthesis and chatbot system prompts.
+- Mobile-friendly responsive layout (nav collapses to a menu, poster+detail
+  rows stack, tables scroll horizontally instead of overflowing) across
+  every page
+- Privacy Policy and Terms of Service pages with real operator/contact
+  details, not placeholder text
 - Big, clear confirmation toasts (`Toast.js` / `useToast.js`) after every
   save-worthy action (rating saved, preferences updated, recommendation
   triaged, etc.), each with a short line of guidance on where to find the
@@ -341,12 +401,14 @@ These are Phase 2/3 items from the original plan, not oversights:
   title after 30 days (`CACHE_TTL_DAYS`), but only lazily, on next lookup —
   there's no scheduled job proactively refreshing stale streaming
   availability.
-- **Recommendation diversity guardrails / de-duplication tuning.** The
-  prompt in `lib/recommendations.js` asks Claude to avoid repeats and
-  diversify, but there's no additional code-level enforcement.
+- **Recommendation diversity guardrails.** The prompt in
+  `lib/recommendations.js` asks Claude to diversify beyond the user's
+  dominant genre, but there's no code-level enforcement of that (unlike
+  de-duplication, which *is* enforced in code now - see Section 7).
 - **Visual design pass.** Styling (`app/globals.css`) is intentionally plain
   and functional, matching the wireframe layouts from the planning doc, not
-  a finished visual design.
+  a finished visual design - though it is responsive/mobile-friendly (see
+  Section 7), which is a layout concern, not a visual-polish one.
 - **Notifications/nudges**, e.g. "a new episode of a show you love is out."
 - **Demographics-aware recommending** — the field exists (My Preferences page,
   `User.location`, `PreferenceProfile.demographicsConsider`) and is included
@@ -356,5 +418,7 @@ These are Phase 2/3 items from the original plan, not oversights:
 ## 9. A note on data & privacy
 
 Everything lives in your local SQLite file (`prisma/dev.db`, git-ignored).
-The only external calls this app makes are to the Anthropic API. There's no
-analytics, tracking, or third-party service beyond that.
+The external calls this app makes are: the Anthropic API (profile synthesis,
+recommendations, chat), TMDB and OMDb (title metadata - see Section 3).
+There's no analytics, tracking, or other third-party service beyond that.
+The Privacy Policy page (`/privacy`) reflects this.
