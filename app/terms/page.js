@@ -25,7 +25,7 @@ export default async function TermsPage() {
       )}
       <div className="page" style={{ maxWidth: 760 }}>
         <h1>Terms of Service</h1>
-        <p className="muted">Last updated: August 26, 2026</p>
+        <p className="muted">Last updated: September 5, 2026</p>
 
         <div className="card">
           <h2>1. Acceptance</h2>
@@ -41,10 +41,11 @@ export default async function TermsPage() {
           <p>
             CineMatch is an AI-assisted movie and TV recommendation platform, currently offered as an early-stage
             (MVP) product. You rate what you&apos;ve watched, an AI builds a taste profile from that, and it
-            recommends new titles based on it. Title details, streaming availability, and critic scores are looked
-            up by the AI via web search, not a licensed movie database - they&apos;re a best effort, may be
-            incomplete, outdated, or wrong, and shouldn&apos;t be relied on as a guarantee that a title is actually
-            available where you are. Always verify with the streaming service directly before assuming.
+            recommends new titles based on it. Title details, streaming availability, and Rotten Tomatoes/IMDb
+            scores are looked up via TMDB (The Movie Database) and OMDb, third-party movie/TV databases - not
+            looked up by the AI itself. Even so, this data is a best effort: it may be incomplete, outdated, or
+            occasionally mismatched to the wrong title, and shouldn&apos;t be relied on as a guarantee that a title
+            is actually available where you are. Always verify with the streaming service directly before assuming.
           </p>
         </div>
 

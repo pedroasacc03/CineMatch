@@ -32,7 +32,7 @@ export default async function PrivacyPage() {
       )}
       <div className="page" style={{ maxWidth: 760 }}>
         <h1>Privacy Policy</h1>
-        <p className="muted">Last updated: August 26, 2026 · Effective for accounts created on or after August 26, 2026</p>
+        <p className="muted">Last updated: September 5, 2026 · Effective for accounts created on or after August 26, 2026</p>
 
         <div className="card">
           <h2>1. Who this is</h2>
@@ -62,8 +62,13 @@ export default async function PrivacyPage() {
             </li>
             <li>
               <strong>Region and streaming services (optional):</strong> if you choose to share your location or
-              the streaming services you have, we use it only to make streaming-availability info more accurate.
-              Never required.
+              the streaming services you have, we use it only to make streaming-availability info more accurate -
+              your region is sent to TMDB (Section 4) for this specific purpose. Never required.
+            </li>
+            <li>
+              <strong>Title searches:</strong> when you search for a movie/TV show (on the Ratings/Wishlist pages,
+              or indirectly through a rating or AI recommendation), the title name is sent to TMDB to look up its
+              details - see Section 4.
             </li>
             <li><strong>Chat messages:</strong> what you send the CineMatch chatbot, and its replies.</li>
             <li>
@@ -93,25 +98,35 @@ export default async function PrivacyPage() {
           <h2>4. How your data is used</h2>
           <p>
             Your ratings and taste profile are used to generate personalized recommendations and to power the
-            chatbot. To do this, relevant parts of your data (ratings, your &quot;why&quot; notes, your taste
-            profile, and chat messages) are sent to <strong>Anthropic</strong>, the AI provider behind CineMatch,
-            for processing. Anthropic acts as our data processor for this purpose.
+            chatbot (which can also read and update your ratings, wishlist, and profile on request - the same
+            data described in Section 2, just through a conversational interface instead of the regular pages).
+            To do this, relevant parts of your data (ratings, your &quot;why&quot; notes, your taste profile, and
+            chat messages) are sent to <strong>Anthropic</strong>, the AI provider behind CineMatch, for processing.
+            Anthropic acts as our data processor for this purpose.
           </p>
           <p>
-            Because Anthropic processes this data outside Brazil, this involves an <strong>international transfer
-            of personal data</strong> (LGPD Art. 33). We rely on your consent (Section 3) as the legal basis for
-            this transfer, together with Anthropic&apos;s own contractual data-protection commitments as our
-            sub-processor.
+            Separately, movie/TV metadata - title details, genres, cast, streaming availability, and Rotten
+            Tomatoes/IMDb scores - comes from two third-party movie databases: <strong>TMDB</strong> (The Movie
+            Database) and <strong>OMDb</strong>. These receive only the title being looked up (and, for
+            streaming-availability accuracy, your region if you&apos;ve set one) - never your ratings, &quot;why&quot;
+            notes, taste profile, chat messages, or account/identity info. TMDB and OMDb act as our data processors
+            for this specific, narrower purpose.
+          </p>
+          <p>
+            Because Anthropic, TMDB, and OMDb all process data outside Brazil, this involves an <strong>international
+            transfer of personal data</strong> (LGPD Art. 33). We rely on your consent (Section 3) as the legal basis
+            for these transfers, together with each provider&apos;s own contractual data-protection commitments as
+            our sub-processors.
           </p>
         </div>
 
         <div className="card">
           <h2>5. Who we share it with</h2>
           <p>
-            <strong>Anthropic</strong> (Section 4) is the only third party your personal data is sent to. We do not
-            sell your data, and we do not share it with advertisers, data brokers, or third-party analytics
-            companies - because we don&apos;t use any. There is no tracking pixel, no ad network, and no
-            third-party analytics SDK anywhere in CineMatch.
+            <strong>Anthropic, TMDB, and OMDb</strong> (Section 4) are the only third parties your data is sent to -
+            each for the specific, limited purpose described there. We do not sell your data, and we do not share
+            it with advertisers, data brokers, or third-party analytics companies - because we don&apos;t use any.
+            There is no tracking pixel, no ad network, and no third-party analytics SDK anywhere in CineMatch.
           </p>
           <p>
             The only usage data we keep is the small, first-party account-milestone log mentioned in Section 2
